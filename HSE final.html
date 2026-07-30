@@ -152,6 +152,9 @@ td .cell-textarea{min-height:44px;resize:vertical}
 .badge.st-Open{background:#fee2e2;color:#b91c1c}
 .badge.st-Ongoing{background:#fef3c7;color:#92400e}
 .badge.st-Closed{background:#dcfce7;color:#15803d}
+.badge.st-Done{background:#dcfce7;color:#15803d}
+.badge.st-Inprogress{background:#fef3c7;color:#92400e}
+.badge.st-NotStarted{background:#eef1ee;color:#5c6b60}
 .badge.ver-Verified{background:#dcfce7;color:#15803d}
 .badge.ver-Pending{background:#f1f5f4;color:#5c6b60}
 .badge.neutral{background:#eef2ee;color:#41544a}
@@ -229,6 +232,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
       <button data-tab="training" onclick="activateTab('training')">Training</button>
       <button data-tab="meetings" onclick="activateTab('meetings')">HSE Meetings</button>
       <button data-tab="audits" onclick="activateTab('audits')">Audits / Inspections</button>
+      <button data-tab="imsSchedule" onclick="activateTab('imsSchedule')">IMS Schedule</button>
       <button data-tab="master" onclick="activateTab('master')">Master</button>
       <button data-tab="backup" onclick="activateTab('backup')">Backup</button>
     </nav>
@@ -339,9 +343,24 @@ td .cell-textarea{min-height:44px;resize:vertical}
 
     <div class="grid2">
       <div class="panel">
-        <h3>📅 HSE Meetings vs Target (2/month)</h3>
+        <h3>📅 HSE Meetings</h3>
         <svg class="vbarchart" id="meetingTargetChart" viewBox="0 0 560 220"></svg>
-        <div class="legend-row" id="meetingTargetLegend"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px">
+      <h3>🚦 IMS Schedule — Overall Progress</h3>
+      <div class="kpis" id="imsProgressKpis" style="margin-bottom:12px"></div>
+      <div class="bar-track" style="height:16px"><div class="bar-fill" id="imsProgressBarFill" style="width:0%;background:#16a34a"></div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>🗓️ IMS Schedule — Activities by Status</h3>
+        <div class="donut-wrap"><svg class="donut" id="imsDonutStatus" viewBox="0 0 42 42"></svg><div class="legend" id="imsStatusLegend"></div></div>
+      </div>
+      <div class="panel">
+        <h3>🗓️ IMS Schedule — Duration (Months) by Activity No.</h3>
+        <svg class="vbarchart" id="imsDurationChart" viewBox="0 0 560 220"></svg>
       </div>
     </div>
   </section>
@@ -355,6 +374,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
   <section class="view" id="view-training" data-reg="training"></section>
   <section class="view" id="view-meetings" data-reg="meetings"></section>
   <section class="view" id="view-audits" data-reg="audits"></section>
+  <section class="view" id="view-imsSchedule" data-reg="imsSchedule"></section>
 
   <!-- MASTER -->
   <section class="view" id="view-master">
@@ -423,6 +443,18 @@ td .cell-textarea{min-height:44px;resize:vertical}
   </div>
 </div>
 
+<!-- IMPORT COLUMN-MAPPING MODAL -->
+<div class="modal-bg" id="importMapBg">
+  <div class="modal">
+    <div class="modal-head"><h3 id="importMapTitle">Match columns</h3></div>
+    <div class="modal-body" id="importMapBody" style="grid-template-columns:1fr 1fr;"></div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeImportMapModal()">Cancel</button>
+      <button class="btn danger" onclick="confirmImportMap()">Replace data &amp; Import</button>
+    </div>
+  </div>
+</div>
+
 <!-- KPI DETAIL MODAL -->
 <div class="modal-bg" id="kpiModalBg">
   <div class="modal" style="max-width:920px">
@@ -450,6 +482,7 @@ let MASTER = {
   verifiedOptions:['Verified','Pending'],
   incidentTypes:['Incident','Near Miss','Lost Time Injury','First Aid Case','Property Damage'],
   returnToWork:['Yes','No','N/A'],
+  imsStatusList:['Done','In-progress','Not Started'],
 };
 
 /* ============================= REGISTER CONFIG ============================= */
@@ -839,6 +872,42 @@ REGISTERS.audits = {
 {no:'25',date:'2026-07-10',project:'V1 Bussiness Centre',location:'Gloria Jeans',dept:'VMC',remarks:''},
   ]
 };
+REGISTERS.imsSchedule = {
+  label:'IMS Implementation Schedule', icon:'🗓️', tab:'imsSchedule',
+  columns:[
+    {key:'no',label:'Activity No.',type:'text',w:'70px'},
+    {key:'activity',label:'Activities',type:'textarea',wide:true},
+    {key:'deliverable',label:'Deliverable',type:'text'},
+    {key:'startMonth',label:'Start Month',type:'text',w:'100px'},
+    {key:'endMonth',label:'End Month',type:'text',w:'100px'},
+    {key:'duration',label:'Duration (Months)',type:'number',w:'90px'},
+    {key:'comments',label:'Comments',type:'textarea',wide:true},
+    {key:'status',label:'Status',type:'select',source:'imsStatusList',badge:'st',filter:true},
+  ],
+  seed:[
+{no:1,activity:'Formal engagement kickoff — scope, roles, and schedule confirmed with CEO and team',deliverable:'Kickoff Complete',startMonth:'May 2026',endMonth:'May 2026',duration:1,comments:'',status:'Done'},
+{no:2,activity:'Hazard Identification & Risk Assessment (HIRA) completed across all V1 & V2 operations',deliverable:'HIRA Issued',startMonth:'Jun 2026',endMonth:'Jun 2026',duration:1,comments:'',status:'Done'},
+{no:3,activity:'Environmental Aspects & Impacts Assessment completed',deliverable:'Aspects Register Issued',startMonth:'Jun 2026',endMonth:'Jun 2026',duration:1,comments:'',status:'Done'},
+{no:4,activity:'Gap Assessment completed for ISO 45001 & ISO 14001 — Gap Report issued to CEO',deliverable:'Gap Report Issued',startMonth:'Jul 2026',endMonth:'Aug 2026',duration:2,comments:'',status:'In-progress'},
+{no:5,activity:'Legal & Regulatory Register developed and approved',deliverable:'Legal Register Live',startMonth:'Jul 2026',endMonth:'Aug 2026',duration:2,comments:'',status:'In-progress'},
+{no:6,activity:'Design of IMS Framework completed and IMS Manual issued',deliverable:'IMS Manual Draft Issued',startMonth:'Sep 2026',endMonth:'Sep 2026',duration:1,comments:'',status:'Not Started'},
+{no:7,activity:'Procedure writing session conducted — client team trained on how to write ISO procedures',deliverable:'Workshop Completed',startMonth:'Jul 2026',endMonth:'Jul 2026',duration:1,comments:'',status:'Done'},
+{no:8,activity:'All ISO 45001 & 14001 procedures (35 Nos) written by client team, reviewed and approved by consultant',deliverable:'Procedure Library Complete',startMonth:'Aug 2026',endMonth:'Feb 2027',duration:7,comments:'',status:'In-progress'},
+{no:9,activity:'Start implementation of processes and systems, in line with approved ISO 45001 & 19001 procedures',deliverable:'Implementation Live',startMonth:'Oct 2026',endMonth:'Mar 2027',duration:6,comments:'Lead: HSE Manager\nSupport: Consultant (Need Basis)',status:'Not Started'},
+{no:10,activity:'Develop and activate KPI monitoring dashboard active — HSE and environmental performance being tracked monthly',deliverable:'KPIs Being Tracked',startMonth:'Apr 2027',endMonth:'Apr 2027',duration:1,comments:'Lead: HSE Manager\nSupport: Consultant (Need Basis)',status:'Not Started'},
+{no:12,activity:'All internal audit non-conformities raised and corrective actions closed',deliverable:'All CARs Closed',startMonth:'Oct 2027',endMonth:'Nov 2027',duration:2,comments:'Lead: HSE Manager\nSupport: Consultant (Need Basis)',status:'Not Started'},
+{no:13,activity:'Gap Assessment for ISO 41001 (Facility Management) completed',deliverable:'41001 Gap Report Issued',startMonth:'Jun 2027',endMonth:'Jun 2027',duration:1,comments:'',status:'Not Started'},
+{no:14,activity:'Asset Register and Planned Preventive Maintenance framework developed by the client and reviewed/ approved by the consultant',deliverable:'PPM Framework Live',startMonth:'Jul 2027',endMonth:'Aug 2027',duration:2,comments:'',status:'Not Started'},
+{no:15,activity:'All ISO 41001 procedures (Nos 20) written by the Client and reviewed plus approved by the consultant',deliverable:'41001 Procedures Complete',startMonth:'Sep 2027',endMonth:'Nov 2027',duration:3,comments:'',status:'Not Started'},
+{no:16,activity:'Start implementation of processes and systems, in line with approved ISO 41001 procedures',deliverable:'',startMonth:'Dec 2027',endMonth:'Jan 2029',duration:2,comments:'Lead: HSE Manager\nSupport: Consultant (Need Basis) [Recurring — occurs in: Dec 2027, Jan 2029]',status:'Not Started'},
+{no:17,activity:'All internal audit non-conformities raised and corrective actions closed',deliverable:'All CARs Closed',startMonth:'Apr 2028',endMonth:'Apr 2029',duration:4,comments:'Lead: HSE Manager\nSupport: Consultant (Need Basis) [Recurring — occurs in: Apr 2028, May 2028, Mar 2029, Apr 2029]',status:'Not Started'},
+{no:18,activity:'Develop procedures to manage emergency scenarios (8 Nos)',deliverable:'',startMonth:'Sep 2026',endMonth:'Oct 2026',duration:2,comments:'Lead: HSE Manager\nSupport: Consultant (Need Basis)',status:'Not Started'},
+{no:19,activity:'Review and approve procedures to manage emergency scenarios (8 Nos)',deliverable:'',startMonth:'Nov 2026',endMonth:'Nov 2026',duration:1,comments:'',status:'Not Started'},
+{no:20,activity:'Training of staff to handle emergency scenarios',deliverable:'',startMonth:'Dec 2026',endMonth:'Jan 2027',duration:2,comments:'Lead: HSE Manager\nSupport: Consultant (Need Basis)',status:'Not Started'},
+{no:21,activity:'Carry out emergency drills, once per quarter (One of the drills should cover complete evacuation of the site)',deliverable:'Drill Report Issued',startMonth:'Feb 2027',endMonth:'May 2029',duration:10,comments:'First 2 drills will be led by the consultant; afterwards it will be HSE Manager\'s responsibility [Recurring — occurs in: Feb 2027, May 2027, Aug 2027, Nov 2027, Feb 2028, May 2028, Aug 2028, Nov 2028, Feb 2029, May 2029]',status:'Not Started'},
+{no:22,activity:'Quarterly progress review',deliverable:'',startMonth:'Sep 2026',endMonth:'Jun 2029',duration:12,comments:' [Recurring — occurs in: Sep 2026, Dec 2026, Mar 2027, Jun 2027, Sep 2027, Dec 2027, Mar 2028, Jun 2028, Sep 2028, Dec 2028, Mar 2029, Jun 2029]',status:'Not Started'},
+  ]
+};
 
 /* Real sample rows transcribed from the HSE Observations sheet (subset) */
 REGISTERS.obs.seed = [
@@ -1163,6 +1232,7 @@ function activateTab(tab){
 /* ============================= REGISTER RENDERING ============================= */
 let REG_STATE = {}; // per register: {search, filters:{}, sort:{key,dir}}
 Object.keys(REGISTERS).forEach(k=>REG_STATE[k]={search:'', filters:{}, sort:{key:'date',dir:'desc'}});
+REG_STATE.imsSchedule.sort = {key:'no', dir:'asc'};
 
 function fieldOptions(source){ return MASTER[source]||[]; }
 
@@ -1176,6 +1246,8 @@ function buildRegisterShell(regKey){
       <div class="spacer"></div>
       <button class="btn" onclick="printRegister('${regKey}')">🖨 Print</button>
       <button class="btn" onclick="exportCSV('${regKey}')">⬇ CSV</button>
+      <input type="file" id="upload-${regKey}" accept=".csv" style="display:none" onchange="importRegisterCSV('${regKey}', this)">
+      <button class="btn" onclick="document.getElementById('upload-${regKey}').click()">⬆ Upload CSV</button>
       <button class="btn primary" onclick="openAddModal('${regKey}')">＋ Add Entry</button>
     </div>
     <div class="stat-strip" id="strip-${regKey}"></div>
@@ -1236,7 +1308,7 @@ function currentFiltered(regKey){
 
 function badgeHtml(type,val){
   if(!val) return '<span class="badge neutral">—</span>';
-  const cls = type==='risk' ? 'risk-'+val : type==='st' ? 'st-'+val : type==='ver' ? 'ver-'+val : 'neutral';
+  const cls = type==='risk' ? 'risk-'+val : type==='st' ? 'st-'+String(val).replace(/\s+/g,'') : type==='ver' ? 'ver-'+val : 'neutral';
   return `<span class="badge ${cls}">${val}</span>`;
 }
 
@@ -1387,9 +1459,138 @@ function csvQuote(v){ v=String(v===undefined||v===null?'':v); return '"'+v.repla
 function exportCSV(regKey){
   const cfg=REGISTERS[regKey];
   const rows = currentFiltered(regKey);
-  let csv = cfg.columns.map(c=>csvQuote(c.label)).join(',')+'\r\n';
-  rows.forEach(r=>{ csv += cfg.columns.map(c=>csvQuote(r[c.key])).join(',')+'\r\n'; });
+  let csv = ['ID', ...cfg.columns.map(c=>c.label)].map(csvQuote).join(',')+'\r\n';
+  rows.forEach(r=>{ csv += [r.id, ...cfg.columns.map(c=>r[c.key])].map(csvQuote).join(',')+'\r\n'; });
   download(`HSE-${regKey}_${stamp()}.csv`, '\ufeff'+csv, 'text/csv;charset=utf-8');
+}
+
+/* ---- Bulk upload: parse CSV, upsert by ID (blank/unmatched ID = new row) ---- */
+function parseCSV(text){
+  const rows=[]; let row=[], field='', inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQuotes){
+      if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else { inQuotes=false; } }
+      else field+=c;
+    } else {
+      if(c==='"') inQuotes=true;
+      else if(c===','){ row.push(field); field=''; }
+      else if(c==='\r'){ /* skip, \n handles line end */ }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else field+=c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=> !(r.length===1 && r[0].trim()===''));
+}
+/* ---- Step 1: read file, then open the column-mapping modal (no import yet) ---- */
+function normalizeHeader(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function guessColumnForField(fieldLabel, fieldKey, headers){
+  const wantExact = normalizeHeader(fieldLabel);
+  const wantKey = normalizeHeader(fieldKey);
+  // 1) exact label match
+  for(let i=0;i<headers.length;i++){ if(normalizeHeader(headers[i])===wantExact) return i; }
+  // 2) exact key match (e.g. header literally "topic")
+  for(let i=0;i<headers.length;i++){ if(normalizeHeader(headers[i])===wantKey) return i; }
+  // 3) contains match either direction
+  for(let i=0;i<headers.length;i++){
+    const h = normalizeHeader(headers[i]);
+    if(!h) continue;
+    if(h.includes(wantExact) || wantExact.includes(h) || h.includes(wantKey) || wantKey.includes(h)) return i;
+  }
+  return -1;
+}
+function parseFlexibleDate(raw){
+  const s = String(raw||'').trim();
+  if(!s) return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // already ISO
+  const months = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  let m = s.match(/^(\d{1,2})[-\/ ]([A-Za-z]{3,})[-\/ ](\d{2,4})$/); // 20-May-26 / 20 May 2026
+  if(m){
+    const mo = months[m[2].slice(0,3).toLowerCase()];
+    if(mo){ let yr = m[3].length===2 ? (2000+Number(m[3])) : Number(m[3]); return `${yr}-${String(mo).padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+  }
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/); // 05/20/2026 or 20/05/2026 (assume D/M/Y)
+  if(m){ let yr=m[3].length===2?(2000+Number(m[3])):Number(m[3]); return `${yr}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`; }
+  return s; // unrecognized — leave as-is
+}
+let importCtx = null;
+function importRegisterCSV(regKey, inputEl){
+  const file = inputEl.files[0];
+  if(!file) return;
+  const cfg = REGISTERS[regKey];
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      let text = e.target.result;
+      if(text.charCodeAt(0)===0xFEFF) text = text.slice(1);
+      const table = parseCSV(text);
+      if(table.length<2){ toast('File khali hai ya sirf header hai'); inputEl.value=''; return; }
+      const header = table[0].map(h=>h.trim());
+      importCtx = {regKey, header, rows: table.slice(1)};
+      openImportMapModal();
+    }catch(err){
+      console.error(err);
+      toast('File read nahi ho saki — CSV format check karein');
+    }
+    inputEl.value='';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+/* ---- Step 2: show a mapping row per register field, pre-guessed, user can override ---- */
+function openImportMapModal(){
+  const {regKey, header} = importCtx;
+  const cfg = REGISTERS[regKey];
+  document.getElementById('importMapTitle').textContent = `Match columns — ${cfg.label} (${importCtx.rows.length} rows)`;
+  const body = document.getElementById('importMapBody');
+  const idGuess = header.findIndex(h=>normalizeHeader(h)==='id');
+  const optsHtml = (selectedIdx)=>{
+    let html = `<option value="-1">— Ignore / not in file —</option>`;
+    header.forEach((h,i)=>{ html += `<option value="${i}" ${i===selectedIdx?'selected':''}>${escapeHtml(h)}</option>`; });
+    return html;
+  };
+  let rowsHtml = `<div class="field full" style="grid-column:1/-1;color:var(--muted);font-size:12.5px;margin-bottom:2px">
+    Har dashboard field ke saamne apni file wala matching column chunein. Jo field file mein nahi hai use "Ignore" par rehne dein — yeh field khaali reh jayega. Import karte hi is register ka <b>sara purana data delete</b> ho kar file wala data load ho jayega.
+  </div>`;
+  rowsHtml += `<div class="field"><label>Row ID (optional, for reference)</label><select id="impmap-id">${optsHtml(idGuess)}</select></div>`;
+  cfg.columns.forEach(c=>{
+    const guess = guessColumnForField(c.label, c.key, header);
+    rowsHtml += `<div class="field"><label>${escapeHtml(c.label)}</label><select id="impmap-${c.key}">${optsHtml(guess)}</select></div>`;
+  });
+  body.innerHTML = rowsHtml;
+  document.getElementById('importMapBg').classList.add('show');
+}
+function closeImportMapModal(){ document.getElementById('importMapBg').classList.remove('show'); importCtx=null; }
+function confirmImportMap(){
+  const {regKey, header, rows} = importCtx;
+  const cfg = REGISTERS[regKey];
+  if(!confirm(`Yeh "${cfg.label}" ka SARA maujooda data delete karke file wala data daal dega. Yeh wapas nahi ho sakta. Continue karein?`)) return;
+  const idIdx = Number(document.getElementById('impmap-id').value);
+  const colIndex = {};
+  cfg.columns.forEach(c=>{ const v = Number(document.getElementById('impmap-'+c.key).value); if(v>=0) colIndex[c.key]=v; });
+  const newRows = []; let nid = 1;
+  rows.forEach(line=>{
+    if(!line || line.every(v=>String(v).trim()==='')) return;
+    const data = {};
+    cfg.columns.forEach(c=>{
+      const idx = colIndex[c.key];
+      if(idx===undefined){ data[c.key] = c.type==='number' ? 0 : ''; return; }
+      let raw = line[idx]!==undefined ? line[idx] : '';
+      if(c.type==='date') raw = parseFlexibleDate(raw);
+      data[c.key] = c.type==='number' ? (Number(raw)||0) : raw;
+    });
+    const idVal = idIdx>=0 ? Number(line[idIdx]) : NaN;
+    const id = !isNaN(idVal) && idVal>0 ? idVal : nid;
+    nid = Math.max(nid, id+1);
+    newRows.push({id, ...data});
+  });
+  DATA[regKey] = newRows;
+  saveReg(regKey);
+  renderRegisterTable(regKey);
+  refreshDashIfActive();
+  closeImportMapModal();
+  toast(`Purana data delete ho gaya — ${newRows.length} nayi entries load ho gayin`);
 }
 function exportAllCSVZipLike(){ Object.keys(REGISTERS).forEach(k=>exportCSV(k)); toast('Downloading all registers as CSV…'); }
 function download(filename, content, mime){
@@ -1477,11 +1678,11 @@ function renderSparkline(id, values, color){
   const last = pts[pts.length-1].split(',');
   el.innerHTML = `<polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${last[0]}" cy="${last[1]}" r="2.3" fill="${color}"/>`;
 }
-function renderLineChart(id, categories, series){
+function renderLineChart(id, categories, series, target){
   const el=document.getElementById(id); if(!el) return;
   const W=560,H=220,padL=30,padR=10,padT=14,padB=26;
   const innerW=W-padL-padR, innerH=H-padT-padB;
-  const maxVal=Math.max(1,...series.flatMap(s=>s.values));
+  const maxVal=Math.max(1,target||0,...series.flatMap(s=>s.values));
   const n=categories.length;
   const stepX = n>1 ? innerW/(n-1) : 0;
   const xFor=i=>padL+i*stepX;
@@ -1499,7 +1700,12 @@ function renderLineChart(id, categories, series){
     const dots = s.values.map((v,i)=>`<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(v).toFixed(1)}" r="2.6" fill="${s.color}"/>`).join('');
     return `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>${dots}`;
   }).join('');
-  el.innerHTML = grid+lines+labels;
+  let targetLine = '';
+  if(target){
+    const ty=yFor(target);
+    targetLine = `<line x1="${padL}" y1="${ty.toFixed(1)}" x2="${W-padR}" y2="${ty.toFixed(1)}" stroke="#182018" stroke-width="1.6" stroke-dasharray="5,4"/><text x="${W-padR}" y="${(ty-5).toFixed(1)}" font-size="9.5" fill="#182018" text-anchor="end" font-weight="700">Target: ${target}/month</text>`;
+  }
+  el.innerHTML = grid+lines+targetLine+labels;
 }
 function renderVBarChart(id, categories, values, color){
   const el=document.getElementById(id); if(!el) return;
@@ -1525,6 +1731,87 @@ function renderVBarChart(id, categories, values, color){
     bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${color}"/>`;
     if(v>0) bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="9.5" fill="#182018" text-anchor="middle" font-weight="700">${v}</text>`;
     bars += `<text x="${(x+bw/2).toFixed(1)}" y="${H-8}" font-size="9" fill="#5c6b60" text-anchor="middle">${escapeHtml(String(c))}</text>`;
+  });
+  el.innerHTML = grid+bars;
+}
+/* ---- IMS Implementation Schedule: status donut + duration bar + gantt timeline ---- */
+const IMS_STATUS_COLORS = {'Done':'#16a34a','In-progress':'#d97706','Not Started':'#94a3b8'};
+const IMS_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function imsMonthIndex(s){
+  if(!s) return null;
+  const parts = String(s).trim().split(' ');
+  if(parts.length<2) return null;
+  const mo = IMS_MONTHS.indexOf(parts[0]);
+  const yr = Number(parts[1]);
+  if(mo<0 || isNaN(yr)) return null;
+  return yr*12+mo;
+}
+function imsIsOverdue(r){
+  if(r.status==='Done') return false;
+  const endIdx = imsMonthIndex(r.endMonth);
+  if(endIdx==null) return false;
+  const now = new Date();
+  const curIdx = now.getFullYear()*12 + now.getMonth();
+  return endIdx < curIdx;
+}
+function renderImsCharts(){
+  const rows = DATA.imsSchedule || [];
+  if(!document.getElementById('imsDonutStatus')) return;
+  // Status donut
+  const byStatus = MASTER.imsStatusList.map(s=>({label:s, val:rows.filter(r=>r.status===s).length, color:IMS_STATUS_COLORS[s]||'#999'}));
+  renderDonut('imsDonutStatus','imsStatusLegend', byStatus);
+  // Duration bar chart
+  const sorted = rows.slice().sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0));
+  renderVBarChart('imsDurationChart', sorted.map(r=>String(r.no)), sorted.map(r=>Number(r.duration)||0), '#0f7a4d');
+  // Overall progress KPI strip
+  const total = rows.length;
+  const doneCt = rows.filter(r=>r.status==='Done').length;
+  const progCt = rows.filter(r=>r.status==='In-progress').length;
+  const notCt = rows.filter(r=>r.status==='Not Started').length;
+  const overdueCt = rows.filter(imsIsOverdue).length;
+  const pctDone = total ? Math.round(doneCt/total*100) : 0;
+  const kpiEl = document.getElementById('imsProgressKpis');
+  if(kpiEl){
+    kpiEl.innerHTML = `
+      <div class="kpi" onclick="showImsKpiDetail('all')"><div class="n" style="color:#16a34a">${pctDone}%</div><div class="l">Overall Complete</div></div>
+      <div class="kpi c-closed" onclick="showImsKpiDetail('Done')"><div class="n">${doneCt}</div><div class="l">Done</div></div>
+      <div class="kpi c-ongoing" onclick="showImsKpiDetail('In-progress')"><div class="n">${progCt}</div><div class="l">In-progress</div></div>
+      <div class="kpi" onclick="showImsKpiDetail('Not Started')"><div class="n" style="color:#94a3b8">${notCt}</div><div class="l">Not Started</div></div>
+      <div class="kpi c-over" onclick="showImsKpiDetail('overdue')"><div class="n">${overdueCt}</div><div class="l">Overdue</div></div>
+    `;
+  }
+  const barEl = document.getElementById('imsProgressBarFill');
+  if(barEl) barEl.style.width = pctDone+'%';
+}
+function renderImsGantt(id, rows){
+  const el=document.getElementById(id); if(!el) return;
+  if(!rows.length){ el.innerHTML=''; return; }
+  const W=900, padL=40, padR=20, padT=14, padB=30, rowH=18, rowGap=4;
+  const H = padT+padB+rows.length*(rowH+rowGap);
+  el.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const items = rows.map(r=>{
+    const s = imsMonthIndex(r.startMonth), e = imsMonthIndex(r.endMonth);
+    return {no:r.no, status:r.status, start:s, span: (s!=null&&e!=null) ? Math.max(1,e-s+1) : 1};
+  }).filter(it=>it.start!=null);
+  const minM = Math.min(...items.map(i=>i.start));
+  const maxM = Math.max(...items.map(i=>i.start+i.span));
+  const innerW = W-padL-padR;
+  const xFor = m => padL + (m-minM)/(maxM-minM)*innerW;
+  let grid='', bars='';
+  // year gridlines (every 12 months)
+  for(let m=minM; m<=maxM; m++){
+    if(m%12===0){
+      const x=xFor(m);
+      const yr = Math.floor(m/12);
+      grid += `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${H-padB}" stroke="#e9efe9" stroke-width="1"/><text x="${x.toFixed(1)}" y="${H-padB+14}" font-size="9" fill="#8a988c" text-anchor="middle">${yr}</text>`;
+    }
+  }
+  items.forEach((it,i)=>{
+    const y = padT + i*(rowH+rowGap);
+    const x1 = xFor(it.start), x2 = xFor(it.start+it.span);
+    const color = IMS_STATUS_COLORS[it.status]||'#999';
+    bars += `<text x="4" y="${(y+rowH*0.72).toFixed(1)}" font-size="9" fill="#5c6b60" text-anchor="start">#${it.no}</text>`;
+    bars += `<rect x="${x1.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(2,(x2-x1)).toFixed(1)}" height="${rowH}" rx="2.5" fill="${color}"><title>Activity ${it.no} — ${it.status}</title></rect>`;
   });
   el.innerHTML = grid+bars;
 }
@@ -1556,9 +1843,7 @@ function renderTargetBarChart(id, categories, values, target){
     bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(y-6).toFixed(1)}" font-size="10.5" fill="#182018" text-anchor="middle" font-weight="800">${v}</text>`;
     bars += `<text x="${(x+bw/2).toFixed(1)}" y="${H-8}" font-size="9.5" fill="#5c6b60" text-anchor="middle">${escapeHtml(String(c))}</text>`;
   });
-  const ty=yFor(target);
-  const targetLine = `<line x1="${padL}" y1="${ty.toFixed(1)}" x2="${W-padR}" y2="${ty.toFixed(1)}" stroke="#182018" stroke-width="1.6" stroke-dasharray="5,4"/><text x="${W-padR}" y="${(ty-5).toFixed(1)}" font-size="9.5" fill="#182018" text-anchor="end" font-weight="700">Target: ${target}/month</text>`;
-  el.innerHTML = grid+bars+targetLine;
+  el.innerHTML = grid+bars;
 }
 function renderStackedBarChart(id, categories, series){
   const el=document.getElementById(id); if(!el) return;
@@ -1850,7 +2135,7 @@ function renderDashboard(){
   // Training sessions per month (separate chart)
   renderLineChart('trainSessionsChart', catLabels, [
     {label:'Training Sessions', color:'#0f7a4d', values: months6.map(m=>train.filter(t=>ymKey(t.date)===m.key).length)},
-  ]);
+  ], 2);
   document.getElementById('trainSessionsLegend').innerHTML = [['Training Sessions','#0f7a4d']]
     .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
 
@@ -1887,9 +2172,9 @@ function renderDashboard(){
   const MEETING_TARGET = 2;
   const meetingVals = months6.map(m=>meetings.filter(x=>ymKey(x.date)===m.key).length);
   renderTargetBarChart('meetingTargetChart', catLabels, meetingVals, MEETING_TARGET);
-  document.getElementById('meetingTargetLegend').innerHTML = [
-    ['Target Achieved (≥2)','#16a34a'],['Below Target (<2)','#dc2626']
-  ].map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
+
+  // IMS Implementation Schedule charts
+  renderImsCharts();
 }
 function pct(v,total){ return total? Math.round(v/total*100) : 0; }
 
@@ -1936,6 +2221,41 @@ function renderKpiDetailModal(title, rows){
 function showKpiDetail(kpiKey){
   const rows = (DASH_KPI_SETS[kpiKey]||[]);
   renderKpiDetailModal(KPI_TITLES[kpiKey]||'Details', rows);
+}
+function showImsKpiDetail(filter){
+  const all = DATA.imsSchedule || [];
+  const rows = filter==='all' ? all.slice() : filter==='overdue' ? all.filter(imsIsOverdue) : all.filter(r=>r.status===filter);
+  const title = filter==='all' ? 'All IMS Schedule Activities' : filter==='overdue' ? 'IMS Schedule — Overdue' : `IMS Schedule — ${filter}`;
+  rows.sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0));
+  document.getElementById('kpiModalTitle').textContent = `${title} (${rows.length})`;
+  const body = document.getElementById('kpiModalBody');
+  if(!rows.length){
+    body.innerHTML = '<div class="empty" style="padding:30px"><div class="e-ic">🗂️</div>No entries found for this filter.</div>';
+  } else {
+    body.innerHTML = `
+      <div style="overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:10px">
+        <table class="kpi-detail-table">
+          <thead><tr>
+            <th>No.</th><th>Activities</th><th>Deliverable</th><th>Start Month</th><th>End Month</th><th>Duration</th><th>Status</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(r=>`
+              <tr class="rowclick" onclick="closeKpiModal();openEditModal('imsSchedule',${r.id})">
+                <td>${escapeHtml(r.no!=null?r.no:'—')}</td>
+                <td style="max-width:320px">${escapeHtml((r.activity||'').slice(0,140))}${(r.activity||'').length>140?'…':''}</td>
+                <td>${escapeHtml(r.deliverable||'—')}</td>
+                <td>${escapeHtml(r.startMonth||'—')}</td>
+                <td>${escapeHtml(r.endMonth||'—')}</td>
+                <td>${escapeHtml(r.duration!=null?r.duration:'—')}</td>
+                <td>${badgeHtml('st',r.status)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:8px;font-size:11.5px;color:var(--faint)">Click a row to open the full entry.</div>
+    `;
+  }
+  document.getElementById('kpiModalBg').classList.add('show');
 }
 function showProjectRiskDetail(project, risk){
   const rows = (DASH_OPEN_ONGOING||[]).filter(o=>o.project===project && o.risk===risk);
@@ -2035,7 +2355,8 @@ let fitLabelsCanvas = null;
 const MASTER_LABELS = {
   projects:'Projects', departments:'Departments', owners:'Action Owners', riskLevels:'Risk Levels',
   obsCategories:'Observation Categories', actionTypes:'Action Required Types', statusList:'Status Options',
-  verifiedOptions:'HSE Verified Options', incidentTypes:'Incident / Near-Miss Types', returnToWork:'Return to Work Options'
+  verifiedOptions:'HSE Verified Options', incidentTypes:'Incident / Near-Miss Types', returnToWork:'Return to Work Options',
+  imsStatusList:'IMS Schedule — Status Options'
 };
 function renderMaster(){
   const grid=document.getElementById('masterGrid');
@@ -2128,6 +2449,7 @@ async function syncNow(){
 
 /* ============================= MODAL bg click ============================= */
 document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
+document.getElementById('importMapBg').addEventListener('click', e=>{ if(e.target.id==='importMapBg') closeImportMapModal(); });
 
 /* ============================= INIT ============================= */
 function init(){
