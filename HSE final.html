@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --ink:#14201a; --ink2:#0c1712;
@@ -1260,8 +1261,8 @@ function buildRegisterShell(regKey){
       <div class="spacer"></div>
       <button class="btn" onclick="printRegister('${regKey}')">🖨 Print</button>
       <button class="btn" onclick="exportCSV('${regKey}')">⬇ CSV</button>
-      <input type="file" id="upload-${regKey}" accept=".csv" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden" onchange="importRegisterCSV('${regKey}', this)">
-      <label class="btn" for="upload-${regKey}" style="display:inline-flex;align-items:center">⬆ Upload CSV</label>
+      <input type="file" id="upload-${regKey}" accept=".csv,.xlsx,.xls" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden" onchange="importRegisterCSV('${regKey}', this)">
+      <label class="btn" for="upload-${regKey}" style="display:inline-flex;align-items:center">⬆ Upload CSV / Excel</label>
       <button class="btn primary" onclick="openAddModal('${regKey}')">＋ Add Entry</button>
     </div>
     <div class="stat-strip" id="strip-${regKey}"></div>
@@ -1533,6 +1534,28 @@ function importRegisterCSV(regKey, inputEl){
   const file = inputEl.files[0];
   if(!file) return;
   const cfg = REGISTERS[regKey];
+  const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+  if(isExcel){
+    if(typeof XLSX==='undefined'){ toast('Excel reader load nahi ho saka — internet check karein aur dobara try karein'); inputEl.value=''; return; }
+    const reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const table = XLSX.utils.sheet_to_json(sheet, {header:1, defval:'', raw:false});
+        if(table.length<2){ toast('File khali hai ya sirf header hai'); inputEl.value=''; return; }
+        const header = table[0].map(h=>String(h).trim());
+        importCtx = {regKey, header, rows: table.slice(1)};
+        openImportMapModal();
+      }catch(err){
+        console.error(err);
+        toast('Excel file read nahi ho saki — format check karein');
+      }
+      inputEl.value='';
+    };
+    reader.readAsArrayBuffer(file);
+    return;
+  }
   const reader = new FileReader();
   reader.onload = function(e){
     try{
