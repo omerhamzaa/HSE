@@ -1707,9 +1707,11 @@ function renderLineChart(id, categories, series, target){
   }
   el.innerHTML = grid+lines+targetLine+labels;
 }
-function renderVBarChart(id, categories, values, color){
+function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickFn){
   const el=document.getElementById(id); if(!el) return;
-  const W=560,H=220,padL=30,padR=10,padT=20,padB=28;
+  const W=560;
+  const H = (xTitle||yTitle) ? 240 : 220;
+  const padL = yTitle ? 44 : 30, padR=10, padT=20, padB = xTitle ? 42 : 28;
   const innerW=W-padL-padR, innerH=H-padT-padB;
   const n=Math.max(1,categories.length);
   const maxVal=Math.max(1,...values);
@@ -1728,10 +1730,15 @@ function renderVBarChart(id, categories, values, color){
     const x=padL+i*slot+gap/2;
     const h=maxVal? (v/maxVal)*innerH : 0;
     const y=padT+innerH-h;
-    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${color}"/>`;
-    if(v>0) bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="9.5" fill="#182018" text-anchor="middle" font-weight="700">${v}</text>`;
-    bars += `<text x="${(x+bw/2).toFixed(1)}" y="${H-8}" font-size="9" fill="#5c6b60" text-anchor="middle">${escapeHtml(String(c))}</text>`;
+    const clickAttrs = onClickFn ? ` class="risk-seg" style="cursor:pointer" onclick="${onClickFn}('${jsStr(String(c))}')"` : '';
+    const tip = onClickFn ? `<title>Activity ${escapeHtml(String(c))}: ${v} — click for details</title>` : '';
+    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${color}"${clickAttrs}>${tip}</rect>`;
+    if(v>0) bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="9.5" fill="#182018" text-anchor="middle" font-weight="700" style="pointer-events:none">${v}</text>`;
+    bars += `<text x="${(x+bw/2).toFixed(1)}" y="${padT+innerH+16}" font-size="9" fill="#5c6b60" text-anchor="middle">${escapeHtml(String(c))}</text>`;
   });
+  if(xTitle) bars += `<text x="${(padL+innerW/2).toFixed(1)}" y="${H-6}" font-size="10.5" fill="#41544a" text-anchor="middle" font-weight="700">${escapeHtml(xTitle)}</text>`;
+  if(yTitle) bars += `<text x="12" y="${(padT+innerH/2).toFixed(1)}" font-size="10.5" fill="#41544a" text-anchor="middle" font-weight="700" transform="rotate(-90 12 ${(padT+innerH/2).toFixed(1)})">${escapeHtml(yTitle)}</text>`;
+  el.setAttribute('viewBox', `0 0 ${W} ${H}`);
   el.innerHTML = grid+bars;
 }
 /* ---- IMS Implementation Schedule: status donut + duration bar + gantt timeline ---- */
@@ -1762,7 +1769,7 @@ function renderImsCharts(){
   renderDonut('imsDonutStatus','imsStatusLegend', byStatus);
   // Duration bar chart
   const sorted = rows.slice().sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0));
-  renderVBarChart('imsDurationChart', sorted.map(r=>String(r.no)), sorted.map(r=>Number(r.duration)||0), '#0f7a4d');
+  renderVBarChart('imsDurationChart', sorted.map(r=>String(r.no)), sorted.map(r=>Number(r.duration)||0), '#0f7a4d', 'Activity No.', 'Months', 'showImsActivityDetail');
   // Overall progress KPI strip
   const total = rows.length;
   const doneCt = rows.filter(r=>r.status==='Done').length;
@@ -1835,7 +1842,7 @@ function renderTargetBarChart(id, categories, values, target){
   categories.forEach((c,i)=>{
     const v=values[i]||0;
     const good = v>=target;
-    const color = good ? '#16a34a' : '#dc2626';
+    const color = '#16a34a';
     const x=padL+i*slot+(slot-bw)/2;
     const h=(v/maxVal)*innerH;
     const y=padT+innerH-h;
@@ -2118,9 +2125,9 @@ function renderDashboard(){
     return d!==null && d<0;
   }).length);
   renderObsStackedChart('obsTrendChart', catLabels, recordedVals, closedVals, ongoingVals, overdueVals,
-    {recorded:'#f4978e', closed:'#2563eb', ongoing:'#16a34a', overdue:'#7f1d1d'}, months6, obs
+    {recorded:'#f4978e', closed:'#2563eb', ongoing:'#16a34a', overdue:'#dc2626'}, months6, obs
   );
-  document.getElementById('obsTrendLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#2563eb'],['Ongoing','#16a34a'],['Overdue','#7f1d1d']]
+  document.getElementById('obsTrendLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#2563eb'],['Ongoing','#16a34a'],['Overdue','#dc2626']]
     .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
 
   // Incidents by type
@@ -2281,6 +2288,29 @@ function showTrendDetail(monthKey, monthLabel, cat){
     rows = [];
   }
   renderKpiDetailModal(`${TREND_CAT_LABELS[cat]||'Details'} — ${monthLabel}`, rows);
+}
+function showImsActivityDetail(activityNo){
+  const rows = DATA.imsSchedule || [];
+  const r = rows.find(x=>String(x.no)===String(activityNo));
+  if(!r){ toast('Activity not found'); return; }
+  document.getElementById('kpiModalTitle').textContent = `Activity #${escapeHtml(String(r.no))} — Details`;
+  const body = document.getElementById('kpiModalBody');
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="field"><label>Activity No.</label><div style="padding:8px 0;font-size:13.5px;color:var(--text)">${escapeHtml(r.no!=null?r.no:'—')}</div></div>
+      <div class="field"><label>Status</label><div style="padding:8px 0">${badgeHtml('st',r.status)}</div></div>
+      <div class="field" style="grid-column:1/-1"><label>Activities</label><div style="padding:8px 0;font-size:13.5px;color:var(--text);white-space:pre-wrap">${escapeHtml(r.activity||'—')}</div></div>
+      <div class="field"><label>Deliverable</label><div style="padding:8px 0;font-size:13.5px;color:var(--text)">${escapeHtml(r.deliverable||'—')}</div></div>
+      <div class="field"><label>Duration (Months)</label><div style="padding:8px 0;font-size:13.5px;color:var(--text)">${escapeHtml(r.duration!=null?r.duration:'—')}</div></div>
+      <div class="field"><label>Start Month</label><div style="padding:8px 0;font-size:13.5px;color:var(--text)">${escapeHtml(r.startMonth||'—')}</div></div>
+      <div class="field"><label>End Month</label><div style="padding:8px 0;font-size:13.5px;color:var(--text)">${escapeHtml(r.endMonth||'—')}</div></div>
+      <div class="field" style="grid-column:1/-1"><label>Comments</label><div style="padding:8px 0;font-size:13.5px;color:var(--text);white-space:pre-wrap">${escapeHtml(r.comments||'—')}</div></div>
+    </div>
+    <div style="margin-top:14px;display:flex;justify-content:flex-end">
+      <button class="btn primary sm" onclick="closeKpiModal();openEditModal('imsSchedule',${r.id})">✏️ Edit this entry</button>
+    </div>
+  `;
+  document.getElementById('kpiModalBg').classList.add('show');
 }
 function closeKpiModal(){ document.getElementById('kpiModalBg').classList.remove('show'); }
 function openObsFromKpi(id){
