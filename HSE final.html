@@ -176,6 +176,8 @@ td .cell-textarea{min-height:44px;resize:vertical}
 .field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:#fff}
 .field textarea{min-height:70px;resize:vertical}
 .modal-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
+.confirm-modal{max-width:420px}
+.confirm-modal .modal-body{display:block;padding:20px;font-size:13.5px;color:var(--text);line-height:1.6}
 
 /* Master */
 .master-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
@@ -444,6 +446,17 @@ td .cell-textarea{min-height:44px;resize:vertical}
 </div>
 
 <!-- IMPORT COLUMN-MAPPING MODAL -->
+<div class="modal-bg" id="confirmBg">
+  <div class="modal confirm-modal">
+    <div class="modal-head"><h3 id="confirmTitle">Confirm</h3></div>
+    <div class="modal-body" id="confirmBody"></div>
+    <div class="modal-foot">
+      <button class="btn" id="confirmCancelBtn">Cancel</button>
+      <button class="btn danger" id="confirmOkBtn">OK</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="importMapBg">
   <div class="modal">
     <div class="modal-head"><h3 id="importMapTitle">Match columns</h3></div>
@@ -1246,8 +1259,8 @@ function buildRegisterShell(regKey){
       <div class="spacer"></div>
       <button class="btn" onclick="printRegister('${regKey}')">🖨 Print</button>
       <button class="btn" onclick="exportCSV('${regKey}')">⬇ CSV</button>
-      <input type="file" id="upload-${regKey}" accept=".csv" style="display:none" onchange="importRegisterCSV('${regKey}', this)">
-      <button class="btn" onclick="document.getElementById('upload-${regKey}').click()">⬆ Upload CSV</button>
+      <input type="file" id="upload-${regKey}" accept=".csv" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden" onchange="importRegisterCSV('${regKey}', this)">
+      <label class="btn" for="upload-${regKey}" style="display:inline-flex;align-items:center">⬆ Upload CSV</label>
       <button class="btn primary" onclick="openAddModal('${regKey}')">＋ Add Entry</button>
     </div>
     <div class="stat-strip" id="strip-${regKey}"></div>
@@ -1376,8 +1389,8 @@ function quickEdit(regKey,id,key,td){
   input.addEventListener('keydown', e=>{ if(e.key==='Enter' && cfg.type!=='textarea'){ e.preventDefault(); input.blur(); } if(e.key==='Escape'){ renderRegisterTable(regKey); } });
 }
 
-function deleteRow(regKey,id){
-  if(!confirm('Delete this entry? This cannot be undone.')) return;
+async function deleteRow(regKey,id){
+  if(!await askConfirm('Delete this entry? This cannot be undone.', 'Delete')) return;
   DATA[regKey] = DATA[regKey].filter(r=>r.id!==id);
   saveReg(regKey);
   renderRegisterTable(regKey);
@@ -1442,10 +1455,10 @@ function modalSave(){
   refreshDashIfActive();
   closeModal();
 }
-function modalDelete(){
+async function modalDelete(){
   const {regKey,id} = modalCtx;
   if(!id) return;
-  if(!confirm('Delete this entry?')) return;
+  if(!await askConfirm('Delete this entry?', 'Delete')) return;
   DATA[regKey] = DATA[regKey].filter(r=>r.id!==id);
   saveReg(regKey);
   renderRegisterTable(regKey);
@@ -1562,10 +1575,29 @@ function openImportMapModal(){
   document.getElementById('importMapBg').classList.add('show');
 }
 function closeImportMapModal(){ document.getElementById('importMapBg').classList.remove('show'); importCtx=null; }
-function confirmImportMap(){
+
+/* ---- Custom confirm dialog: replaces window.confirm(), which Google Sites (and other
+   sites that embed this page inside a sandboxed <iframe>) silently blocks. ---- */
+let confirmResolver = null;
+function askConfirm(message, okLabel){
+  return new Promise(resolve=>{
+    confirmResolver = resolve;
+    document.getElementById('confirmBody').textContent = message;
+    document.getElementById('confirmOkBtn').textContent = okLabel || 'OK';
+    document.getElementById('confirmBg').classList.add('show');
+  });
+}
+function settleConfirm(result){
+  document.getElementById('confirmBg').classList.remove('show');
+  if(confirmResolver){ confirmResolver(result); confirmResolver=null; }
+}
+document.getElementById('confirmOkBtn').addEventListener('click', ()=>settleConfirm(true));
+document.getElementById('confirmCancelBtn').addEventListener('click', ()=>settleConfirm(false));
+document.getElementById('confirmBg').addEventListener('click', e=>{ if(e.target.id==='confirmBg') settleConfirm(false); });
+async function confirmImportMap(){
   const {regKey, header, rows} = importCtx;
   const cfg = REGISTERS[regKey];
-  if(!confirm(`Yeh "${cfg.label}" ka SARA maujooda data delete karke file wala data daal dega. Yeh wapas nahi ho sakta. Continue karein?`)) return;
+  if(!await askConfirm(`Yeh "${cfg.label}" ka SARA maujooda data delete karke file wala data daal dega. Yeh wapas nahi ho sakta. Continue karein?`, 'Replace data')) return;
   const idIdx = Number(document.getElementById('impmap-id').value);
   const colIndex = {};
   cfg.columns.forEach(c=>{ const v = Number(document.getElementById('impmap-'+c.key).value); if(v>=0) colIndex[c.key]=v; });
@@ -2416,8 +2448,8 @@ function addMasterItem(key){
   Object.keys(REGISTERS).forEach(rk=>{ if(document.getElementById('thead-'+rk)) buildRegisterShell(rk), renderRegisterTable(rk); });
   toast('Added to '+MASTER_LABELS[key]);
 }
-function removeMasterItem(key,idx){
-  if(!confirm('Remove this item from the list? Existing entries using it keep their value.')) return;
+async function removeMasterItem(key,idx){
+  if(!await askConfirm('Remove this item from the list? Existing entries using it keep their value.', 'Remove')) return;
   MASTER[key].splice(idx,1);
   saveMaster(); renderMasterList(key); populateDashProjectFilter();
   Object.keys(REGISTERS).forEach(rk=>{ if(document.getElementById('thead-'+rk)) buildRegisterShell(rk), renderRegisterTable(rk); });
@@ -2454,8 +2486,8 @@ function importJSON(){
   };
   reader.readAsText(f);
 }
-function resetAll(){
-  if(!confirm('This wipes all current data in this browser and reloads the original sample dataset. Continue?')) return;
+async function resetAll(){
+  if(!await askConfirm('This wipes all current data in this browser and reloads the original sample dataset. Continue?', 'Reset')) return;
   Object.keys(REGISTERS).forEach(k=>{ DATA[k]=REGISTERS[k].seed.map((r,i)=>({id:i+1,...r})); saveReg(k); });
   saveMaster();
   populateDashProjectFilter(); populateDashMonthFilter(); renderDashboard(); renderBackup();
