@@ -103,8 +103,8 @@ main{max-width:1500px;margin:0 auto;padding:20px 22px 60px}
 .panel h3{font-size:14px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .panel h3 .count{margin-left:auto;font-size:11px;color:var(--faint);font-weight:600;background:var(--panel2);padding:3px 9px;border-radius:20px}
 
-.donut-wrap{display:flex;align-items:center;gap:18px}
-.donut{width:150px;height:150px;flex:none}
+.donut-wrap{display:flex;align-items:center;justify-content:center;gap:24px}
+.donut{width:190px;height:190px;flex:none}
 .legend{display:flex;flex-direction:column;gap:8px;font-size:12.5px}
 .legend .row{display:flex;align-items:center;gap:8px}
 .legend .sw{width:10px;height:10px;border-radius:3px;flex:none}
@@ -325,9 +325,9 @@ td .cell-textarea{min-height:44px;resize:vertical}
         <div class="legend-row" id="obsTrendLegend"></div>
       </div>
       <div class="panel">
-        <h3>🚨 Incidents / Near-Miss by Type</h3>
-        <svg class="vbarchart" id="incTypeChart" viewBox="0 0 560 220"></svg>
-        <div class="legend-row" id="incTypeLegend"></div>
+        <h3>🏢 HSE Observation — by Responsible Department</h3>
+        <svg class="vbarchart" id="obsDeptChart" viewBox="0 0 560 240"></svg>
+        <div class="legend-row" id="obsDeptLegend"></div>
       </div>
     </div>
 
@@ -362,6 +362,11 @@ td .cell-textarea{min-height:44px;resize:vertical}
         <h3>📅 HSE Meetings</h3>
         <svg class="vbarchart" id="meetingTargetChart" viewBox="0 0 560 220"></svg>
       </div>
+      <div class="panel">
+        <h3>🚨 Incidents / Near-Miss by Type</h3>
+        <svg class="vbarchart" id="incTypeChart" viewBox="0 0 560 220"></svg>
+        <div class="legend-row" id="incTypeLegend"></div>
+      </div>
     </div>
 
     <div class="panel" style="margin-bottom:14px">
@@ -377,6 +382,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
       <div class="panel">
         <h3>🗓️ IMS Schedule — Duration (Months) by Activity No.</h3>
         <svg class="vbarchart" id="imsDurationChart" viewBox="0 0 560 220"></svg>
+        <div class="legend-row" id="imsDurationLegend"></div>
       </div>
     </div>
   </section>
@@ -717,19 +723,32 @@ function renderSparkline(id, values, color){
   const last = pts[pts.length-1].split(',');
   el.innerHTML = `<polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${last[0]}" cy="${last[1]}" r="2.3" fill="${color}"/>`;
 }
+function niceAxisStep(rough){
+  if(rough<=0) return 1;
+  const exponent=Math.floor(Math.log10(rough));
+  const fraction=rough/Math.pow(10,exponent);
+  let niceFraction;
+  if(fraction<=1) niceFraction=1;
+  else if(fraction<=2) niceFraction=2;
+  else if(fraction<=5) niceFraction=5;
+  else niceFraction=10;
+  return niceFraction*Math.pow(10,exponent);
+}
 function renderLineChart(id, categories, series, target){
   const el=document.getElementById(id); if(!el) return;
   const W=560,H=220,padL=30,padR=10,padT=14,padB=26;
   const innerW=W-padL-padR, innerH=H-padT-padB;
-  const maxVal=Math.max(1,target||0,...series.flatMap(s=>s.values));
+  const rawMax=Math.max(1,target||0,...series.flatMap(s=>s.values));
+  const ticks=4;
+  const step=niceAxisStep(rawMax/ticks);
+  const maxVal=step*ticks;
   const n=categories.length;
   const stepX = n>1 ? innerW/(n-1) : 0;
   const xFor=i=>padL+i*stepX;
   const yFor=v=>padT+innerH-(v/maxVal)*innerH;
   let grid='';
-  const ticks=4;
   for(let t=0;t<=ticks;t++){
-    const val=Math.round(maxVal/ticks*t);
+    const val=step*t;
     const y=yFor(val);
     grid += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e9efe9" stroke-width="1"/><text x="${padL-6}" y="${y+3}" font-size="9" fill="#8a988c" text-anchor="end">${val}</text>`;
   }
@@ -737,7 +756,12 @@ function renderLineChart(id, categories, series, target){
   const lines = series.map(s=>{
     const pts = s.values.map((v,i)=>`${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}`).join(' ');
     const dots = s.values.map((v,i)=>`<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(v).toFixed(1)}" r="2.6" fill="${s.color}"/>`).join('');
-    return `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>${dots}`;
+    const valLabels = s.values.map((v,i)=>{
+      const px=xFor(i), py=yFor(v);
+      const ly = py-8 < padT+8 ? py+14 : py-8;
+      return `<text x="${px.toFixed(1)}" y="${ly.toFixed(1)}" font-size="9.5" fill="#182018" text-anchor="middle" font-weight="700">${v}</text>`;
+    }).join('');
+    return `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>${dots}${valLabels}`;
   }).join('');
   let targetLine = '';
   if(target){
@@ -751,8 +775,7 @@ function renderIncFAStackedChart(id, categories, recordedVals, closedVals, onCli
   const W=560,H=220,padL=30,padR=10,padT=20,padB=28;
   const innerW=W-padL-padR, innerH=H-padT-padB;
   const n=Math.max(1,categories.length);
-  const stackTotals = recordedVals.map((v,i)=>v+(closedVals[i]||0));
-  const maxVal=Math.max(1,...stackTotals);
+  const maxVal=Math.max(1,...recordedVals);
   const gap=40;
   const slot=innerW/n, bw=Math.max(4,Math.min(90,slot-gap));
   let grid='';
@@ -764,25 +787,17 @@ function renderIncFAStackedChart(id, categories, recordedVals, closedVals, onCli
   }
   let bars='';
   categories.forEach((c,i)=>{
-    const rVal=recordedVals[i]||0, cVal=closedVals[i]||0;
-    const rH=(rVal/maxVal)*innerH, cH=(cVal/maxVal)*innerH;
+    const rVal=recordedVals[i]||0;
+    const rH=(rVal/maxVal)*innerH;
     const x=padL+i*slot+(slot-bw)/2;
     const baseY=padT+innerH;
     const rY=baseY-rH;
-    const cY=rY-cH;
     const clickR = onClickFn ? ` style="cursor:pointer" onclick="${onClickFn}('${jsStr(String(c))}','recorded')"` : '';
-    const clickC = onClickFn ? ` style="cursor:pointer" onclick="${onClickFn}('${jsStr(String(c))}','closed')"` : '';
     if(rVal>0){
       bars += `<rect x="${x.toFixed(1)}" y="${rY.toFixed(1)}" width="${bw.toFixed(1)}" height="${rH.toFixed(1)}" rx="2" fill="#f4978e"${clickR}><title>Recorded — ${escapeHtml(String(c))}: ${rVal}</title></rect>`;
       const rTxtY = rH>=14 ? (rY+rH/2+3) : (rY-4);
       const rTxtColor = rH>=14 ? '#5c2b26' : '#182018';
       bars += `<text x="${(x+bw/2).toFixed(1)}" y="${rTxtY.toFixed(1)}" font-size="10" fill="${rTxtColor}" text-anchor="middle" font-weight="700" style="pointer-events:none">${rVal}</text>`;
-    }
-    if(cVal>0){
-      bars += `<rect x="${x.toFixed(1)}" y="${cY.toFixed(1)}" width="${bw.toFixed(1)}" height="${cH.toFixed(1)}" rx="2" fill="#2563eb"${clickC}><title>Closed — ${escapeHtml(String(c))}: ${cVal}</title></rect>`;
-      const cTxtY = cH>=14 ? (cY+cH/2+3) : (cY-4);
-      const cTxtColor = cH>=14 ? '#fff' : '#182018';
-      bars += `<text x="${(x+bw/2).toFixed(1)}" y="${cTxtY.toFixed(1)}" font-size="10" fill="${cTxtColor}" text-anchor="middle" font-weight="700" style="pointer-events:none">${cVal}</text>`;
     }
     bars += `<text x="${(x+bw/2).toFixed(1)}" y="${padT+innerH+16}" font-size="10" fill="#5c6b60" text-anchor="middle">${escapeHtml(String(c))}</text>`;
   });
@@ -812,9 +827,10 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
     const x=padL+i*slot+gap/2;
     const h=maxVal? (v/maxVal)*innerH : 0;
     const y=padT+innerH-h;
-    const clickAttrs = onClickFn ? ` class="risk-seg" style="cursor:pointer" onclick="${onClickFn}('${jsStr(String(c))}')"` : '';
+    const barColor = Array.isArray(color) ? (color[i]||'#0f7a4d') : color;
+    const clickAttrs = onClickFn ? ` class="risk-seg" style="cursor:pointer" onclick="${onClickFn}('${jsStr(String(c))}', ${i})"` : '';
     const tip = onClickFn ? `<title>Activity ${escapeHtml(String(c))}: ${v} — click for details</title>` : '';
-    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${color}"${clickAttrs}>${tip}</rect>`;
+    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${barColor}"${clickAttrs}>${tip}</rect>`;
     if(v>0) bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="9.5" fill="#182018" text-anchor="middle" font-weight="700" style="pointer-events:none">${v}</text>`;
     bars += `<text x="${(x+bw/2).toFixed(1)}" y="${padT+innerH+16}" font-size="9" fill="#5c6b60" text-anchor="middle">${escapeHtml(String(c))}</text>`;
   });
@@ -825,7 +841,7 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
 }
 /* ---- IMS Implementation Schedule: status donut + duration bar + gantt timeline ---- */
 
-const IMS_STATUS_COLORS = {'Done':'#16a34a','In-progress':'#d97706','Not Started':'#94a3b8'};
+const IMS_STATUS_COLORS = {'Done':'#16a34a','In-progress':'#fdba74','Not Started':'#93c5fd','Overdue':'#dc2626'};
 const IMS_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function imsMonthIndex(s){
   if(!s) return null;
@@ -844,15 +860,31 @@ function imsIsOverdue(r){
   const curIdx = now.getFullYear()*12 + now.getMonth();
   return endIdx < curIdx;
 }
+const IMS_DURATION_STATUS_COLORS = {'Done':'#16a34a','In-progress':'#2563eb','Not Started':'#93c5fd','Overdue':'#dc2626'};
+let IMS_DURATION_SORTED = [];
+function imsDurationBarColor(r){
+  return imsIsOverdue(r) ? IMS_DURATION_STATUS_COLORS['Overdue'] : (IMS_DURATION_STATUS_COLORS[r.status]||'#0f7a4d');
+}
 function renderImsCharts(){
   const rows = DATA.imsSchedule || [];
   if(!document.getElementById('imsDonutStatus')) return;
   // Status donut
-  const byStatus = MASTER.imsStatusList.map(s=>({label:s, val:rows.filter(r=>r.status===s).length, color:IMS_STATUS_COLORS[s]||'#999'}));
+  const byStatus = [
+    {label:'Done', val:rows.filter(r=>r.status==='Done').length, color:IMS_STATUS_COLORS['Done']},
+    {label:'In-progress', val:rows.filter(r=>r.status==='In-progress' && !imsIsOverdue(r)).length, color:IMS_STATUS_COLORS['In-progress']},
+    {label:'Not Started', val:rows.filter(r=>r.status==='Not Started' && !imsIsOverdue(r)).length, color:IMS_STATUS_COLORS['Not Started']},
+    {label:'Overdue', val:rows.filter(imsIsOverdue).length, color:IMS_STATUS_COLORS['Overdue']},
+  ];
   renderDonut('imsDonutStatus','imsStatusLegend', byStatus);
   // Duration bar chart
   const sorted = rows.slice().sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0));
-  renderVBarChart('imsDurationChart', sorted.map(r=>String(r.no)), sorted.map(r=>Number(r.duration)||0), '#0f7a4d', 'Activity No.', 'Months', 'showImsActivityDetail');
+  IMS_DURATION_SORTED = sorted;
+  renderVBarChart('imsDurationChart', sorted.map(r=>String(r.no)), sorted.map(r=>Number(r.duration)||0), sorted.map(imsDurationBarColor), 'Activity No.', 'Months', 'showImsActivityDetail');
+  const durLegendEl = document.getElementById('imsDurationLegend');
+  if(durLegendEl){
+    durLegendEl.innerHTML = [['Done',IMS_DURATION_STATUS_COLORS['Done']],['In-progress',IMS_DURATION_STATUS_COLORS['In-progress']],['Not Started',IMS_DURATION_STATUS_COLORS['Not Started']],['Overdue',IMS_DURATION_STATUS_COLORS['Overdue']]]
+      .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
+  }
   // Overall progress KPI strip
   const total = rows.length;
   const doneCt = rows.filter(r=>r.status==='Done').length;
@@ -1021,7 +1053,8 @@ function renderComboChart(id, categories, bars, lines){
   el.innerHTML = grid+barsHtml+linesHtml;
 }
 
-function renderObsStackedChart(id, categories, recordedVals, closedVals, ongoingVals, overdueVals, colors, months6, obsAll){
+function renderObsStackedChart(id, categories, recordedVals, closedVals, ongoingVals, overdueVals, colors, months6, obsAll, onClickFn){
+  onClickFn = onClickFn || 'showTrendDetail';
   const el=document.getElementById(id); if(!el) return;
   DASH_TREND_OBS = obsAll||[];
   DASH_TREND_MONTHS = months6||[];
@@ -1049,7 +1082,7 @@ function renderObsStackedChart(id, categories, recordedVals, closedVals, ongoing
   categories.forEach((c,i)=>{
     const groupX = xFor(i) + groupGap/2;
     const bw = Math.max(2, barW-2);
-    const mKey = (months6 && months6[i]) ? months6[i].key : null;
+    const mKey = (months6 && months6[i]) ? months6[i].key : String(c);
     const mLabel = String(c);
 
     // Bar 1: stacked Recorded (bottom) + Closed (top)
@@ -1060,7 +1093,7 @@ function renderObsStackedChart(id, categories, recordedVals, closedVals, ongoing
     const cY = rY - cH;
     const x0 = groupX + 0*barW;
     if(rVal>0){
-      bars += `<rect x="${x0.toFixed(1)}" y="${rY.toFixed(1)}" width="${bw.toFixed(1)}" height="${rH.toFixed(1)}" rx="2" fill="${colors.recorded}" style="cursor:pointer" onclick="showTrendDetail('${mKey}','${jsStr(mLabel)}','recorded')"><title>Recorded — ${mLabel}: ${rVal}</title></rect>`;
+      bars += `<rect x="${x0.toFixed(1)}" y="${rY.toFixed(1)}" width="${bw.toFixed(1)}" height="${rH.toFixed(1)}" rx="2" fill="${colors.recorded}" style="cursor:pointer" onclick="${onClickFn}('${jsStr(mKey)}','${jsStr(mLabel)}','recorded')"><title>Recorded — ${mLabel}: ${rVal}</title></rect>`;
       if(rH>=12){
         bars += `<text x="${(x0+bw/2).toFixed(1)}" y="${(rY+rH/2+3.5).toFixed(1)}" font-size="9" fill="#fff" text-anchor="middle" font-weight="700" style="pointer-events:none">${rVal}</text>`;
       } else {
@@ -1068,21 +1101,21 @@ function renderObsStackedChart(id, categories, recordedVals, closedVals, ongoing
       }
     }
     if(cVal>0){
-      bars += `<rect x="${x0.toFixed(1)}" y="${cY.toFixed(1)}" width="${bw.toFixed(1)}" height="${cH.toFixed(1)}" rx="2" fill="${colors.closed}" style="cursor:pointer" onclick="showTrendDetail('${mKey}','${jsStr(mLabel)}','closed')"><title>Closed — ${mLabel}: ${cVal}</title></rect>`;
+      bars += `<rect x="${x0.toFixed(1)}" y="${cY.toFixed(1)}" width="${bw.toFixed(1)}" height="${cH.toFixed(1)}" rx="2" fill="${colors.closed}" style="cursor:pointer" onclick="${onClickFn}('${jsStr(mKey)}','${jsStr(mLabel)}','closed')"><title>Closed — ${mLabel}: ${cVal}</title></rect>`;
       bars += `<text x="${(x0+bw/2).toFixed(1)}" y="${(cY+cH/2+3.5).toFixed(1)}" font-size="9" fill="#fff" text-anchor="middle" font-weight="700" style="pointer-events:none">${cVal}</text>`;
     }
     // Bar 2: Ongoing
     const oVal = ongoingVals[i]||0;
     const oH=(oVal/maxVal)*innerH, oY=padT+innerH-oH;
     const x1 = groupX + 1*barW;
-    bars += `<rect x="${x1.toFixed(1)}" y="${oY.toFixed(1)}" width="${bw.toFixed(1)}" height="${oH.toFixed(1)}" rx="2" fill="${colors.ongoing}" style="cursor:pointer" onclick="showTrendDetail('${mKey}','${jsStr(mLabel)}','ongoing')"><title>Ongoing — ${mLabel}: ${oVal}</title></rect>`;
+    bars += `<rect x="${x1.toFixed(1)}" y="${oY.toFixed(1)}" width="${bw.toFixed(1)}" height="${oH.toFixed(1)}" rx="2" fill="${colors.ongoing}" style="cursor:pointer" onclick="${onClickFn}('${jsStr(mKey)}','${jsStr(mLabel)}','ongoing')"><title>Ongoing — ${mLabel}: ${oVal}</title></rect>`;
     if(oVal>0) bars += `<text x="${(x1+bw/2).toFixed(1)}" y="${(oY-4).toFixed(1)}" font-size="9.5" fill="#182018" text-anchor="middle" font-weight="700" style="pointer-events:none">${oVal}</text>`;
 
     // Bar 3: Overdue
     const dVal = overdueVals[i]||0;
     const dH=(dVal/maxVal)*innerH, dY=padT+innerH-dH;
     const x2 = groupX + 2*barW;
-    bars += `<rect x="${x2.toFixed(1)}" y="${dY.toFixed(1)}" width="${bw.toFixed(1)}" height="${dH.toFixed(1)}" rx="2" fill="${colors.overdue}" style="cursor:pointer" onclick="showTrendDetail('${mKey}','${jsStr(mLabel)}','overdue')"><title>Overdue — ${mLabel}: ${dVal}</title></rect>`;
+    bars += `<rect x="${x2.toFixed(1)}" y="${dY.toFixed(1)}" width="${bw.toFixed(1)}" height="${dH.toFixed(1)}" rx="2" fill="${colors.overdue}" style="cursor:pointer" onclick="${onClickFn}('${jsStr(mKey)}','${jsStr(mLabel)}','overdue')"><title>Overdue — ${mLabel}: ${dVal}</title></rect>`;
     if(dVal>0) bars += `<text x="${(x2+bw/2).toFixed(1)}" y="${(dY-4).toFixed(1)}" font-size="9.5" fill="#182018" text-anchor="middle" font-weight="700" style="pointer-events:none">${dVal}</text>`;
 
     bars += `<text x="${(xFor(i)+slot/2).toFixed(1)}" y="${H-8}" font-size="9.5" fill="#5c6b60" text-anchor="middle">${escapeHtml(mLabel)}</text>`;
@@ -1143,12 +1176,12 @@ function renderDashboard(){
   renderSparkline('spk-over', mSeries(overdue), '#ea580c');
 
   // Risk donut
-  const riskColors = {Critical:'#dc2626',High:'#c2410c',Medium:'#d97706',Low:'#16a34a'};
+  const riskColors = {Critical:'#dc2626',High:'#fb923c',Medium:'#fde047',Low:'#16a34a'};
   renderDonut('donutRisk','riskLegend', MASTER.riskLevels.map(r=>({label:r,val:obs.filter(o=>o.risk===r).length,color:riskColors[r]||'#999'})));
   document.getElementById('riskTotal').textContent = obs.length+' total';
 
   // Status donut
-  const stColors = {Open:'#dc2626',Ongoing:'#d97706',Closed:'#16a34a'};
+  const stColors = {Open:'#dc2626',Ongoing:'#fb923c',Closed:'#16a34a'};
   renderDonut('donutStatus','statusLegend', MASTER.statusList.map(s=>({label:s,val:obs.filter(o=>o.status===s).length,color:stColors[s]||'#999'})));
   document.getElementById('statusTotal').textContent = obs.length+' total';
 
@@ -1209,9 +1242,27 @@ function renderDashboard(){
     return d!==null && d<0;
   }).length);
   renderObsStackedChart('obsTrendChart', catLabels, recordedVals, closedVals, ongoingVals, overdueVals,
-    {recorded:'#f4978e', closed:'#2563eb', ongoing:'#16a34a', overdue:'#dc2626'}, months6, obs
+    {recorded:'#f4978e', closed:'#16a34a', ongoing:'#fb923c', overdue:'#dc2626'}, months6, obs
   );
-  document.getElementById('obsTrendLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#2563eb'],['Ongoing','#16a34a'],['Overdue','#dc2626']]
+  document.getElementById('obsTrendLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#16a34a'],['Ongoing','#fb923c'],['Overdue','#dc2626']]
+    .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
+
+  // Observations by Responsible Department: Recorded vs Closed vs Ongoing vs Overdue
+  const deptSet = new Set();
+  obs.forEach(o=>{ const d=String(o.dept||'').trim(); if(d) deptSet.add(d); });
+  const depts = MASTER.departments.filter(d=>deptSet.has(d)).concat([...deptSet].filter(d=>!MASTER.departments.includes(d)).sort());
+  const deptRecordedVals = depts.map(d=>obs.filter(o=>String(o.dept||'').trim()===d).length);
+  const deptClosedVals = depts.map(d=>obs.filter(o=>String(o.dept||'').trim()===d && o.status==='Closed').length);
+  const deptOngoingVals = depts.map(d=>obs.filter(o=>String(o.dept||'').trim()===d && o.status==='Ongoing').length);
+  const deptOverdueVals = depts.map(d=>obs.filter(o=>{
+    if(String(o.dept||'').trim()!==d || o.status==='Closed') return false;
+    const dd=daysUntil(o.target);
+    return dd!==null && dd<0;
+  }).length);
+  renderObsStackedChart('obsDeptChart', depts, deptRecordedVals, deptClosedVals, deptOngoingVals, deptOverdueVals,
+    {recorded:'#f4978e', closed:'#16a34a', ongoing:'#fb923c', overdue:'#dc2626'}, null, obs, 'showObsDeptDetail'
+  );
+  document.getElementById('obsDeptLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#16a34a'],['Ongoing','#fb923c'],['Overdue','#dc2626']]
     .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
 
   // Incidents vs First Aid — Recorded (total) vs Closed, stacked bars
@@ -1222,7 +1273,7 @@ function renderDashboard(){
   const incRecorded = [inc.length, faAll.length];
   const incClosed = [inc.filter(i=>isClosed(i.status)).length, faAll.filter(f=>isClosed(f.status)).length];
   renderIncFAStackedChart('incTypeChart', incTypeLabels, incRecorded, incClosed, 'showIncFirstAidDetail');
-  document.getElementById('incTypeLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#2563eb']]
+  document.getElementById('incTypeLegend').innerHTML = [['Recorded','#f4978e']]
     .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
 
   // Man-hours logged per month
@@ -1419,9 +1470,32 @@ function showTrendDetail(monthKey, monthLabel, cat){
   renderKpiDetailModal(`${TREND_CAT_LABELS[cat]||'Details'} — ${monthLabel}`, rows);
 }
 
-function showImsActivityDetail(activityNo){
+function showObsDeptDetail(deptKey, deptLabel, cat){
+  const src = DASH_TREND_OBS||[];
+  const dMatch = o => String(o.dept||'').trim()===deptKey;
+  let rows;
+  if(cat==='recorded'){
+    rows = src.filter(dMatch);
+  } else if(cat==='closed'){
+    rows = src.filter(o=>dMatch(o) && o.status==='Closed');
+  } else if(cat==='ongoing'){
+    rows = src.filter(o=>dMatch(o) && o.status==='Ongoing');
+  } else if(cat==='overdue'){
+    rows = src.filter(o=>{
+      if(!dMatch(o) || o.status==='Closed') return false;
+      const d=daysUntil(o.target);
+      return d!==null && d<0;
+    });
+  } else {
+    rows = [];
+  }
+  renderKpiDetailModal(`${TREND_CAT_LABELS[cat]||'Details'} — ${deptLabel}`, rows);
+}
+
+function showImsActivityDetail(activityNo, idx){
   const rows = DATA.imsSchedule || [];
-  const r = rows.find(x=>String(x.no)===String(activityNo));
+  let r = (idx!=null && IMS_DURATION_SORTED[idx]) ? IMS_DURATION_SORTED[idx] : null;
+  if(!r) r = rows.find(x=>String(x.no)===String(activityNo));
   if(!r){ toast('Activity not found'); return; }
   document.getElementById('kpiModalTitle').textContent = `Activity #${escapeHtml(String(r.no))} — Details`;
   const body = document.getElementById('kpiModalBody');
@@ -1471,7 +1545,7 @@ function renderBars(id, items){
 
 
 const RISK_ORDER = ['Critical','High','Medium','Low'];
-const RISK_COLORS = {Critical:'#dc2626',High:'#c2410c',Medium:'#d97706',Low:'#16a34a'};
+const RISK_COLORS = {Critical:'#dc2626',High:'#fb923c',Medium:'#fde047',Low:'#16a34a'};
 let fitLabelsCanvas = null;
 function renderStackedRiskBars(id, legendId, items){
   const el=document.getElementById(id);
@@ -1485,7 +1559,7 @@ function renderStackedRiskBars(id, legendId, items){
       const v=i.byRisk[r];
       const segPct = v/i.total*100;
       const label = `${r} ${v}`;
-      return `<div class="risk-seg" data-label="${label}" onclick="showProjectRiskDetail('${jsStr(i.label)}','${r}')" style="width:${segPct}%;background:${RISK_COLORS[r]};height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex:none;overflow:hidden;white-space:nowrap;cursor:pointer" title="Click to view ${r} entries for ${escapeHtml(i.label)}: ${v}"></div>`;
+      return `<div class="risk-seg" data-label="${label}" onclick="showProjectRiskDetail('${jsStr(i.label)}','${r}')" style="width:${segPct}%;background:${RISK_COLORS[r]};height:100%;display:flex;align-items:center;justify-content:center;color:#000;font-weight:700;flex:none;overflow:hidden;white-space:nowrap;cursor:pointer" title="Click to view ${r} entries for ${escapeHtml(i.label)}: ${v}"></div>`;
     }).join('');
     return `<div class="bar-row" style="grid-template-columns:120px 1fr 32px"><div class="lab" title="${escapeHtml(i.label)}">${escapeHtml(i.label)}</div><div class="bar-track" style="height:36px"><div style="display:flex;width:${trackPct}%;height:100%">${segs}</div></div><div class="val">${i.total}</div></div>`;
   }).join('');
@@ -1615,10 +1689,11 @@ function rowsFromGviz(regKey, json){
    loaded from the Google Sheet, so new projects/depts added in future
    show up automatically — no hardcoded list to maintain. */
 function rebuildDynamicMaster(){
+  const PROJECT_EXCLUDE = new Set(['V-3','Between V1 & V2']);
   const projSet = new Set(), deptSet = new Set(), ownerSet = new Set();
   ['obs','incidents','induction','training','audits','firstaid'].forEach(k=>{
     (DATA[k]||[]).forEach(r=>{
-      if(r.project) projSet.add(String(r.project).trim());
+      if(r.project && !PROJECT_EXCLUDE.has(String(r.project).trim())) projSet.add(String(r.project).trim());
       if(r.dept||r.department) deptSet.add(String(r.dept||r.department).trim());
     });
   });
