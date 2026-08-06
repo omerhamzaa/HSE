@@ -16,7 +16,7 @@
   --primary:#0f7a4d; --primary-d:#0b5c3a;
   --hazard:#f5a623;
   --overdue:#ea580c; --critical:#dc2626;
-  --closed:#16a34a; --ongoing:#d97706; --open:#dc2626;
+  --closed:#16a34a; --ongoing:#facc15; --open:#dc2626;
   --high:#c2410c;
   --shadow:0 1px 2px rgba(16,26,46,.06),0 6px 20px rgba(16,26,46,.06);
   --shadow-lg:0 10px 40px rgba(16,26,46,.18);
@@ -96,7 +96,7 @@ main{max-width:1500px;margin:0 auto;padding:20px 22px 60px}
 
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .grid1{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:14px}
-.grid-4-6{display:grid;grid-template-columns:1fr 1.5fr;gap:14px;margin-bottom:14px}
+.grid-4-6{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
 @media(max-width:900px){.grid2,.grid-4-6,.grid3{grid-template-columns:1fr}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
@@ -841,7 +841,7 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
 }
 /* ---- IMS Implementation Schedule: status donut + duration bar + gantt timeline ---- */
 
-const IMS_STATUS_COLORS = {'Done':'#16a34a','In-progress':'#fdba74','Not Started':'#93c5fd','Overdue':'#dc2626'};
+const IMS_STATUS_COLORS = {'Done':'#16a34a','In-progress':'#facc15','Not Started':'#1e40af','Overdue':'#dc2626'};
 const IMS_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function imsMonthIndex(s){
   if(!s) return null;
@@ -860,7 +860,7 @@ function imsIsOverdue(r){
   const curIdx = now.getFullYear()*12 + now.getMonth();
   return endIdx < curIdx;
 }
-const IMS_DURATION_STATUS_COLORS = {'Done':'#16a34a','In-progress':'#2563eb','Not Started':'#93c5fd','Overdue':'#dc2626'};
+const IMS_DURATION_STATUS_COLORS = {'Done':'#16a34a','In-progress':'#facc15','Not Started':'#1e40af','Overdue':'#dc2626'};
 let IMS_DURATION_SORTED = [];
 function imsDurationBarColor(r){
   return imsIsOverdue(r) ? IMS_DURATION_STATUS_COLORS['Overdue'] : (IMS_DURATION_STATUS_COLORS[r.status]||'#0f7a4d');
@@ -1170,7 +1170,7 @@ function renderDashboard(){
   const mSeries = arr => months6.map(m=>arr.filter(o=>ymKey(o.date)===m.key).length);
   renderSparkline('spk-total', mSeries(obs), '#0f7a4d');
   renderSparkline('spk-open', mSeries(open), '#dc2626');
-  renderSparkline('spk-ongoing', mSeries(ongoing), '#d97706');
+  renderSparkline('spk-ongoing', mSeries(ongoing), '#facc15');
   renderSparkline('spk-closed', mSeries(closed), '#16a34a');
   renderSparkline('spk-crit', mSeries(critOpen), '#dc2626');
   renderSparkline('spk-over', mSeries(overdue), '#ea580c');
@@ -1181,7 +1181,7 @@ function renderDashboard(){
   document.getElementById('riskTotal').textContent = obs.length+' total';
 
   // Status donut
-  const stColors = {Open:'#dc2626',Ongoing:'#fb923c',Closed:'#16a34a'};
+  const stColors = {Open:'#dc2626',Ongoing:'#facc15',Closed:'#16a34a'};
   renderDonut('donutStatus','statusLegend', MASTER.statusList.map(s=>({label:s,val:obs.filter(o=>o.status===s).length,color:stColors[s]||'#999'})));
   document.getElementById('statusTotal').textContent = obs.length+' total';
 
@@ -1242,9 +1242,9 @@ function renderDashboard(){
     return d!==null && d<0;
   }).length);
   renderObsStackedChart('obsTrendChart', catLabels, recordedVals, closedVals, ongoingVals, overdueVals,
-    {recorded:'#f4978e', closed:'#16a34a', ongoing:'#fb923c', overdue:'#dc2626'}, months6, obs
+    {recorded:'#f4978e', closed:'#16a34a', ongoing:'#facc15', overdue:'#dc2626'}, months6, obs
   );
-  document.getElementById('obsTrendLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#16a34a'],['Ongoing','#fb923c'],['Overdue','#dc2626']]
+  document.getElementById('obsTrendLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#16a34a'],['Ongoing','#facc15'],['Overdue','#dc2626']]
     .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
 
   // Observations by Responsible Department: Recorded vs Closed vs Ongoing vs Overdue
@@ -1260,9 +1260,9 @@ function renderDashboard(){
     return dd!==null && dd<0;
   }).length);
   renderObsStackedChart('obsDeptChart', depts, deptRecordedVals, deptClosedVals, deptOngoingVals, deptOverdueVals,
-    {recorded:'#f4978e', closed:'#16a34a', ongoing:'#fb923c', overdue:'#dc2626'}, null, obs, 'showObsDeptDetail'
+    {recorded:'#f4978e', closed:'#16a34a', ongoing:'#facc15', overdue:'#dc2626'}, null, obs, 'showObsDeptDetail'
   );
-  document.getElementById('obsDeptLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#16a34a'],['Ongoing','#fb923c'],['Overdue','#dc2626']]
+  document.getElementById('obsDeptLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#16a34a'],['Ongoing','#facc15'],['Overdue','#dc2626']]
     .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
 
   // Incidents vs First Aid — Recorded (total) vs Closed, stacked bars
