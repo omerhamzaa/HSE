@@ -312,6 +312,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
       <div class="panel"><h3>🎓 Training &amp; Induction <span class="count" id="trainSummary"></span></h3><div id="trainMini"></div></div>
     </div>
 
+
     <div class="section-head" style="margin-top:22px">
       <div><div class="eyebrow">Trends</div><h2>Monthly Trends</h2></div>
       <div class="spacer"></div>
@@ -538,6 +539,42 @@ const REGISTERS = {
       {key:'duration',label:'Duration (Months)',type:'number'},
       {key:'comments',label:'Comments',type:'textarea'},
       {key:'status',label:'Status',type:'select',source:'imsStatusList',badge:'st'},
+    ]
+  },
+  lti:{
+    label:'Lost Time Injury', icon:'🩼', sheetTab:'LOST TIME INJURY',
+    columns:[
+      {key:'date',label:'Date',type:'date'},
+      {key:'project',label:'Project',type:'select',source:'projects'},
+      {key:'location',label:'Location',type:'text'},
+      {key:'name',label:'Name',type:'text'},
+      {key:'dept',label:'Department',type:'select',source:'departments'},
+      {key:'injuryType',label:'Injury Type',type:'text'},
+      {key:'bodyPart',label:'Body Part',type:'text'},
+      {key:'description',label:'Description',type:'textarea'},
+      {key:'daysLost',label:'Days Lost',type:'number'},
+      {key:'rootCause',label:'Root Cause',type:'textarea'},
+      {key:'correctiveAction',label:'Corrective Action',type:'textarea'},
+      {key:'returnDate',label:'Return to Work Date',type:'date'},
+      {key:'status',label:'Status',type:'select',source:'statusList',badge:'st'},
+      {key:'remarks',label:'Remarks',type:'textarea'},
+    ]
+  },
+  fatality:{
+    label:'Fatality', icon:'⚠️', sheetTab:'FATALITY',
+    columns:[
+      {key:'date',label:'Date',type:'date'},
+      {key:'project',label:'Project',type:'select',source:'projects'},
+      {key:'location',label:'Location',type:'text'},
+      {key:'name',label:'Name',type:'text'},
+      {key:'dept',label:'Department',type:'select',source:'departments'},
+      {key:'designation',label:'Designation',type:'text'},
+      {key:'company',label:'Company / Contractor',type:'text'},
+      {key:'description',label:'Description / Cause',type:'textarea'},
+      {key:'investigationStatus',label:'Investigation Status',type:'select',source:'statusList',badge:'st'},
+      {key:'actionTaken',label:'Action Taken',type:'textarea'},
+      {key:'reportedTo',label:'Reported To (Authority)',type:'text'},
+      {key:'remarks',label:'Remarks',type:'textarea'},
     ]
   },
 };
@@ -1104,6 +1141,16 @@ function renderObsStackedChart(id, categories, recordedVals, closedVals, ongoing
       bars += `<rect x="${x0.toFixed(1)}" y="${cY.toFixed(1)}" width="${bw.toFixed(1)}" height="${cH.toFixed(1)}" rx="2" fill="${colors.closed}" style="cursor:pointer" onclick="${onClickFn}('${jsStr(mKey)}','${jsStr(mLabel)}','closed')"><title>Closed — ${mLabel}: ${cVal}</title></rect>`;
       bars += `<text x="${(x0+bw/2).toFixed(1)}" y="${(cY+cH/2+3.5).toFixed(1)}" font-size="9" fill="#fff" text-anchor="middle" font-weight="700" style="pointer-events:none">${cVal}</text>`;
     }
+    if(rVal>0){
+      const pct = Math.round((cVal/rVal)*100);
+      let topY;
+      if(cVal>0){
+        topY = cY - 5;
+      } else {
+        topY = rH>=12 ? (rY - 5) : (rY - 15);
+      }
+      bars += `<text x="${(x0+bw/2).toFixed(1)}" y="${topY.toFixed(1)}" font-size="9" fill="#182018" text-anchor="middle" font-weight="700" style="pointer-events:none">${pct}%</text>`;
+    }
     // Bar 2: Ongoing
     const oVal = ongoingVals[i]||0;
     const oH=(oVal/maxVal)*innerH, oY=padT+innerH-oH;
@@ -1129,7 +1176,7 @@ let DASH_KPI_SETS = {};
 let DASH_OPEN_ONGOING = [];
 let DASH_TREND_OBS = [];
 let DASH_TREND_MONTHS = [];
-let DASH_INC_ALL = [], DASH_FA_ALL = [];
+let DASH_INC_ALL = [], DASH_FA_ALL = [], DASH_LTI_ALL = [], DASH_FAT_ALL = [];
 function renderDashboard(){
   const projFilter = document.getElementById('dash-project').value;
   const monthFilter = document.getElementById('dash-month').value;
@@ -1229,6 +1276,10 @@ function renderDashboard(){
       <div class="s">Inducted <b>${induct.length}</b></div>
     </div>`;
 
+  // Lost Time Injury / Fatality data (used in Incidents by Type chart below)
+  const ltiAll = (DATA.lti||[]).filter(l=>(!projFilter || l.project===projFilter) && passDate(l.date));
+  const fatAll = (DATA.fatality||[]).filter(f=>(!projFilter || f.project===projFilter) && passDate(f.date));
+
   // ===== Monthly Trend charts =====
   const catLabels = months6.map(m=>m.label);
 
@@ -1265,13 +1316,13 @@ function renderDashboard(){
   document.getElementById('obsDeptLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#16a34a'],['Ongoing','#facc15'],['Overdue','#dc2626']]
     .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
 
-  // Incidents vs First Aid — Recorded (total) vs Closed, stacked bars
+  // Incidents vs First Aid vs LTI vs Fatality — Recorded (total) vs Closed, stacked bars
   const faAll = (DATA.firstaid||[]).filter(f=>(!projFilter || f.project===projFilter) && passDate(f.date));
-  DASH_INC_ALL = inc; DASH_FA_ALL = faAll;
+  DASH_INC_ALL = inc; DASH_FA_ALL = faAll; DASH_LTI_ALL = ltiAll; DASH_FAT_ALL = fatAll;
   const isClosed = s => String(s||'').trim().toLowerCase()==='closed';
-  const incTypeLabels = ['Near Miss', 'First Aid'];
-  const incRecorded = [inc.length, faAll.length];
-  const incClosed = [inc.filter(i=>isClosed(i.status)).length, faAll.filter(f=>isClosed(f.status)).length];
+  const incTypeLabels = ['Near Miss', 'First Aid', 'Lost Time Injury', 'Fatality'];
+  const incRecorded = [inc.length, faAll.length, ltiAll.length, fatAll.length];
+  const incClosed = [inc.filter(i=>isClosed(i.status)).length, faAll.filter(f=>isClosed(f.status)).length, ltiAll.filter(l=>isClosed(l.status)).length, fatAll.filter(f=>isClosed(f.investigationStatus)).length];
   renderIncFAStackedChart('incTypeChart', incTypeLabels, incRecorded, incClosed, 'showIncFirstAidDetail');
   document.getElementById('incTypeLegend').innerHTML = [['Recorded','#f4978e']]
     .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
@@ -1410,12 +1461,18 @@ function showImsKpiDetail(filter){
 }
 
 function showIncFirstAidDetail(label, segment){
-  const isFA = label === 'First Aid';
   const isClosed = s => String(s||'').trim().toLowerCase()==='closed';
-  let rows = ((isFA ? DASH_FA_ALL : DASH_INC_ALL) || []);
-  if(segment==='closed') rows = rows.filter(r=>isClosed(r.status));
+  const map = {
+    'Near Miss': {data: DASH_INC_ALL, regKey: 'incidents', statusKey: 'status'},
+    'First Aid': {data: DASH_FA_ALL, regKey: 'firstaid', statusKey: 'status'},
+    'Lost Time Injury': {data: DASH_LTI_ALL, regKey: 'lti', statusKey: 'status'},
+    'Fatality': {data: DASH_FAT_ALL, regKey: 'fatality', statusKey: 'investigationStatus'},
+  };
+  const m = map[label] || map['Near Miss'];
+  let rows = (m.data || []);
+  if(segment==='closed') rows = rows.filter(r=>isClosed(r[m.statusKey]));
   rows = rows.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const cfg = REGISTERS[isFA ? 'firstaid' : 'incidents'];
+  const cfg = REGISTERS[m.regKey];
   const title = segment==='closed' ? `${label} — Closed` : label;
   document.getElementById('kpiModalTitle').textContent = `${title} (${rows.length})`;
   const body = document.getElementById('kpiModalBody');
@@ -1691,7 +1748,7 @@ function rowsFromGviz(regKey, json){
 function rebuildDynamicMaster(){
   const PROJECT_EXCLUDE = new Set(['V-3','Between V1 & V2']);
   const projSet = new Set(), deptSet = new Set(), ownerSet = new Set();
-  ['obs','incidents','induction','training','audits','firstaid'].forEach(k=>{
+  ['obs','incidents','induction','training','audits','firstaid','lti','fatality'].forEach(k=>{
     (DATA[k]||[]).forEach(r=>{
       if(r.project && !PROJECT_EXCLUDE.has(String(r.project).trim())) projSet.add(String(r.project).trim());
       if(r.dept||r.department) deptSet.add(String(r.dept||r.department).trim());
