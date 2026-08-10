@@ -841,11 +841,16 @@ function renderIncFAStackedChart(id, categories, recordedVals, closedVals, onCli
   el.innerHTML = grid+bars;
 }
 
-function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickFn){
+function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickFn, opts){
   const el=document.getElementById(id); if(!el) return;
+  opts = opts || {};
+  const rotateLabels = !!opts.rotateLabels;
+  const fullLabels = opts.fullLabels || categories;
   const W=560;
-  const H = (xTitle||yTitle) ? 240 : 220;
-  const padL = yTitle ? 44 : 30, padR=10, padT=20, padB = xTitle ? 42 : 28;
+  const maxLabelLen = rotateLabels ? Math.max(0,...categories.map(c=>String(c).length)) : 0;
+  const padB = rotateLabels ? Math.max(70, Math.min(120, 20 + maxLabelLen*3.6)) + 22 : (xTitle ? 42 : 28);
+  const H = (xTitle||yTitle) ? (rotateLabels ? padB+118 : 240) : 220;
+  const padL = yTitle ? 44 : 30, padR=10, padT=20;
   const innerW=W-padL-padR, innerH=H-padT-padB;
   const n=Math.max(1,categories.length);
   const maxVal=Math.max(1,...values);
@@ -858,6 +863,7 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
     const y=padT+innerH-(val/maxVal)*innerH;
     grid += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e9efe9" stroke-width="1"/><text x="${padL-6}" y="${y+3}" font-size="9" fill="#8a988c" text-anchor="end">${val}</text>`;
   }
+  const maxChars = rotateLabels ? 12 : 999;
   let bars='';
   categories.forEach((c,i)=>{
     const v=values[i]||0;
@@ -865,13 +871,19 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
     const h=maxVal? (v/maxVal)*innerH : 0;
     const y=padT+innerH-h;
     const barColor = Array.isArray(color) ? (color[i]||'#0f7a4d') : color;
+    const full = String(fullLabels[i]!=null && fullLabels[i]!=='' ? fullLabels[i] : c);
     const clickAttrs = onClickFn ? ` class="risk-seg" style="cursor:pointer" onclick="${onClickFn}('${jsStr(String(c))}', ${i})"` : '';
-    const tip = onClickFn ? `<title>Activity ${escapeHtml(String(c))}: ${v} — click for details</title>` : '';
+    const tip = onClickFn ? `<title>${escapeHtml(full)}: ${v} — click for details</title>` : `<title>${escapeHtml(full)}: ${v}</title>`;
     bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${barColor}"${clickAttrs}>${tip}</rect>`;
     if(v>0) bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="9.5" fill="#182018" text-anchor="middle" font-weight="700" style="pointer-events:none">${v}</text>`;
-    bars += `<text x="${(x+bw/2).toFixed(1)}" y="${padT+innerH+16}" font-size="9" fill="#5c6b60" text-anchor="middle">${escapeHtml(String(c))}</text>`;
+    const labelText = String(c).length>maxChars ? String(c).slice(0,maxChars-1)+'…' : String(c);
+    if(rotateLabels){
+      bars += `<text x="${(x+bw/2).toFixed(1)}" y="${padT+innerH+12}" font-size="9" fill="#5c6b60" text-anchor="end" transform="rotate(-45 ${(x+bw/2).toFixed(1)} ${padT+innerH+12})"><title>${escapeHtml(full)}</title>${escapeHtml(labelText)}</text>`;
+    } else {
+      bars += `<text x="${(x+bw/2).toFixed(1)}" y="${padT+innerH+16}" font-size="9" fill="#5c6b60" text-anchor="middle">${escapeHtml(labelText)}</text>`;
+    }
   });
-  if(xTitle) bars += `<text x="${(padL+innerW/2).toFixed(1)}" y="${H-6}" font-size="10.5" fill="#41544a" text-anchor="middle" font-weight="700">${escapeHtml(xTitle)}</text>`;
+  if(xTitle) bars += `<text x="${(padL+innerW/2).toFixed(1)}" y="${H-8}" font-size="10.5" fill="#41544a" text-anchor="middle" font-weight="700">${escapeHtml(xTitle)}</text>`;
   if(yTitle) bars += `<text x="12" y="${(padT+innerH/2).toFixed(1)}" font-size="10.5" fill="#41544a" text-anchor="middle" font-weight="700" transform="rotate(-90 12 ${(padT+innerH/2).toFixed(1)})">${escapeHtml(yTitle)}</text>`;
   el.setAttribute('viewBox', `0 0 ${W} ${H}`);
   el.innerHTML = grid+bars;
@@ -916,7 +928,7 @@ function renderImsCharts(){
   // Duration bar chart
   const sorted = rows.slice().sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0));
   IMS_DURATION_SORTED = sorted;
-  renderVBarChart('imsDurationChart', sorted.map(r=>String(r.no)), sorted.map(r=>Number(r.duration)||0), sorted.map(imsDurationBarColor), 'Activity No.', 'Months', 'showImsActivityDetail');
+  renderVBarChart('imsDurationChart', sorted.map(r=>r.deliverable && String(r.deliverable).trim() ? String(r.deliverable) : `Act. ${r.no}`), sorted.map(r=>Number(r.duration)||0), sorted.map(imsDurationBarColor), 'Deliverable', 'Months', 'showImsActivityDetail', {rotateLabels:true, fullLabels: sorted.map(r=>r.deliverable && String(r.deliverable).trim() ? String(r.deliverable) : `Activity ${r.no}`)});
   const durLegendEl = document.getElementById('imsDurationLegend');
   if(durLegendEl){
     durLegendEl.innerHTML = [['Done',IMS_DURATION_STATUS_COLORS['Done']],['In-progress',IMS_DURATION_STATUS_COLORS['In-progress']],['Not Started',IMS_DURATION_STATUS_COLORS['Not Started']],['Overdue',IMS_DURATION_STATUS_COLORS['Overdue']]]
