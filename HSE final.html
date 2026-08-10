@@ -925,8 +925,17 @@ function renderImsCharts(){
     {label:'Overdue', val:rows.filter(imsIsOverdue).length, color:IMS_STATUS_COLORS['Overdue']},
   ];
   renderDonut('imsDonutStatus','imsStatusLegend', byStatus);
-  // Duration bar chart
-  const sorted = rows.slice().sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0));
+  // Duration bar chart — grouped by status: Done, In-progress, Not Started, Overdue
+  const IMS_STATUS_ORDER = {'Done':0,'In-progress':1,'Not Started':2,'Overdue':3};
+  function imsStatusRank(r){
+    if(imsIsOverdue(r)) return IMS_STATUS_ORDER['Overdue'];
+    return IMS_STATUS_ORDER[r.status] != null ? IMS_STATUS_ORDER[r.status] : 4;
+  }
+  const sorted = rows.slice().sort((a,b)=>{
+    const rankDiff = imsStatusRank(a)-imsStatusRank(b);
+    if(rankDiff!==0) return rankDiff;
+    return (Number(a.no)||0)-(Number(b.no)||0);
+  });
   IMS_DURATION_SORTED = sorted;
   renderVBarChart('imsDurationChart', sorted.map(r=>r.deliverable && String(r.deliverable).trim() ? String(r.deliverable) : `Act. ${r.no}`), sorted.map(r=>Number(r.duration)||0), sorted.map(imsDurationBarColor), 'Deliverable', 'Months', 'showImsActivityDetail', {rotateLabels:true, fullLabels: sorted.map(r=>r.deliverable && String(r.deliverable).trim() ? String(r.deliverable) : `Activity ${r.no}`)});
   const durLegendEl = document.getElementById('imsDurationLegend');
