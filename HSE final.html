@@ -104,7 +104,7 @@ main{max-width:1500px;margin:0 auto;padding:20px 22px 60px}
 .panel h3 .count{margin-left:auto;font-size:11px;color:var(--faint);font-weight:600;background:var(--panel2);padding:3px 9px;border-radius:20px}
 
 .donut-wrap{display:flex;align-items:center;justify-content:center;gap:24px}
-.donut{width:190px;height:190px;flex:none}
+.donut{width:250px;height:250px;flex:none}
 .legend{display:flex;flex-direction:column;gap:8px;font-size:12.5px}
 .legend .row{display:flex;align-items:center;gap:8px}
 .legend .sw{width:10px;height:10px;border-radius:3px;flex:none}
@@ -847,8 +847,9 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
   const rotateLabels = !!opts.rotateLabels;
   const fullLabels = opts.fullLabels || categories;
   const W=560;
-  const maxLabelLen = rotateLabels ? Math.max(0,...categories.map(c=>String(c).length)) : 0;
-  const padB = rotateLabels ? Math.max(70, Math.min(120, 20 + maxLabelLen*3.6)) + 22 : (xTitle ? 42 : 28);
+  const fullLabelsForSize = opts.fullLabels || categories;
+  const maxLabelLen = rotateLabels ? Math.max(0,...fullLabelsForSize.map(c=>String(c).length)) : 0;
+  const padB = rotateLabels ? Math.max(70, Math.min(260, 20 + maxLabelLen*5.2)) + 22 : (xTitle ? 42 : 28);
   const H = (xTitle||yTitle) ? (rotateLabels ? padB+118 : 240) : 220;
   const padL = yTitle ? 44 : 30, padR=10, padT=20;
   const innerW=W-padL-padR, innerH=H-padT-padB;
@@ -863,7 +864,7 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
     const y=padT+innerH-(val/maxVal)*innerH;
     grid += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e9efe9" stroke-width="1"/><text x="${padL-6}" y="${y+3}" font-size="9" fill="#8a988c" text-anchor="end">${val}</text>`;
   }
-  const maxChars = rotateLabels ? 12 : 999;
+  const maxChars = rotateLabels ? 999 : 999;
   let bars='';
   categories.forEach((c,i)=>{
     const v=values[i]||0;
