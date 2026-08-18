@@ -334,6 +334,13 @@ td .cell-textarea{min-height:44px;resize:vertical}
 
     <div class="grid2">
       <div class="panel">
+        <h3>✅ Observations Closed per Month (by Closing Date) <span class="count" id="closedCdTotal"></span></h3>
+        <svg class="vbarchart" id="obsClosedCdChart" viewBox="0 0 560 240"></svg>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
         <h3>⏱️ Man-Hours Logged per Month</h3>
         <svg class="vbarchart" id="manHoursChart" viewBox="0 0 560 220"></svg>
       </div>
@@ -421,6 +428,7 @@ const REGISTERS = {
       {key:'dept',label:'Department',type:'select',source:'departments'},
       {key:'target',label:'Target Date',type:'date'},
       {key:'status',label:'Status',type:'select',source:'statusList',badge:'st'},
+      {key:'closingDate',label:'Closing Date',type:'date'},
       {key:'remarks',label:'Remarks',type:'textarea'},
       {key:'verified',label:'HSE Verified',type:'select',source:'verifiedOptions',badge:'ver'},
     ]
@@ -747,6 +755,76 @@ function monthsFromData(arr, fallbackN){
   return out;
 }
 
+/* A closing date only counts if it parsed into a real ISO date with a
+   plausible year — sheet cells like "N/A", "Pending" or a stray typo would
+   otherwise become garbage month keys and stretch the axis to hundreds of columns. */
+function isUsableDate(s){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(s||''))) return false;
+  const y = Number(String(s).slice(0,4));
+  const mo = Number(String(s).slice(5,7));
+  if(mo<1 || mo>12) return false;
+  const nowY = new Date().getFullYear();
+  return y >= 2015 && y <= nowY + 5;
+}
+
+/* Build a month axis from a list of YYYY-MM keys (e.g. closing dates).
+   Gaps are filled with zero bars only while the span stays readable; beyond
+   that we plot just the months that actually have data. */
+function monthsFromKeys(keys, fallbackN){
+  const MAX_FILLED_SPAN = 18;
+  const label = k => {
+    const [y,m] = k.split('-').map(Number);
+    const dt = new Date(y, m-1, 1);
+    return {
+      key: k,
+      label: dt.toLocaleString('en-US',{month:'short'}),
+      full: dt.toLocaleString('en-US',{month:'short',year:'numeric'})
+    };
+  };
+  const present = [...new Set((keys||[]).filter(k=>/^\d{4}-\d{2}$/.test(String(k||''))))].sort();
+  if(!present.length) return lastMonths(fallbackN||6, null).map(m=>label(m.key));
+
+  const [y1,m1] = present[0].split('-').map(Number);
+  const [y2,m2] = present[present.length-1].split('-').map(Number);
+  const span = (y2-y1)*12 + (m2-m1) + 1;
+  if(span > MAX_FILLED_SPAN) return present.map(label);
+
+  const out = []; let y=y1, m=m1;
+  while(y<y2 || (y===y2 && m<=m2)){
+    out.push(label(y+'-'+String(m).padStart(2,'0')));
+    m++; if(m>12){ m=1; y++; }
+  }
+  return out;
+}
+
+/* Month axis ko peeche se pad karta hai — jo mahine data mein nahi hain woh
+   0 ke saath dikhtay hain. Closed-per-month chart April se start hota hai. */
+const CD_AXIS_START = '2026-04';
+function padMonthsFrom(months, startKey){
+  if(!/^\d{4}-\d{2}$/.test(String(startKey||''))) return months;
+  const label = k => {
+    const [y,m] = k.split('-').map(Number);
+    const dt = new Date(y, m-1, 1);
+    return {
+      key: k,
+      label: dt.toLocaleString('en-US',{month:'short'}),
+      full: dt.toLocaleString('en-US',{month:'short',year:'numeric'})
+    };
+  };
+  const first = (months && months.length) ? months[0].key : startKey;
+  if(first <= startKey) return months;                       // pehle se hi April ya us se pehle
+  const [y1,m1] = startKey.split('-').map(Number);
+  const [y2,m2] = first.split('-').map(Number);
+  const gap = (y2-y1)*12 + (m2-m1);
+  if(gap > 12) return months;                                // itna peeche mat jao ke axis bhar jaye
+  const head = []; let y=y1, m=m1;
+  while(y<y2 || (y===y2 && m<m2)){
+    head.push(label(y+'-'+String(m).padStart(2,'0')));
+    m++; if(m>12){ m=1; y++; }
+  }
+  return head.concat(months||[]);
+}
+
 function renderSparkline(id, values, color){
   const el=document.getElementById(id); if(!el) return;
   const w=100,h=26,pad=3;
@@ -856,7 +934,9 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
   const n=Math.max(1,categories.length);
   const maxVal=Math.max(1,...values);
   const gap=8;
-  const slot=innerW/n, bw=Math.max(4,slot-gap);
+  const slot=innerW/n;
+  let bw=Math.max(4,slot-gap);
+  if(opts.maxBarWidth) bw = Math.min(bw, opts.maxBarWidth);
   let grid='';
   const ticks=4;
   for(let t=0;t<=ticks;t++){
@@ -868,7 +948,7 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
   let bars='';
   categories.forEach((c,i)=>{
     const v=values[i]||0;
-    const x=padL+i*slot+gap/2;
+    const x=padL+i*slot+(slot-bw)/2;
     const h=maxVal? (v/maxVal)*innerH : 0;
     const y=padT+innerH-h;
     const barColor = Array.isArray(color) ? (color[i]||'#0f7a4d') : color;
@@ -1199,6 +1279,7 @@ let DASH_OPEN_ONGOING = [];
 let DASH_TREND_OBS = [];
 let DASH_TREND_MONTHS = [];
 let DASH_INC_ALL = [], DASH_FA_ALL = [], DASH_LTI_ALL = [], DASH_FAT_ALL = [];
+let DASH_CLOSED_CD = [], DASH_CD_MONTHS = [];
 function renderDashboard(){
   const projFilter = document.getElementById('dash-project').value;
   const monthFilter = document.getElementById('dash-month').value;
@@ -1338,7 +1419,27 @@ function renderDashboard(){
   document.getElementById('obsDeptLegend').innerHTML = [['Recorded','#f4978e'],['Closed','#16a34a'],['Ongoing','#facc15'],['Overdue','#dc2626']]
     .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
 
-  // Incidents vs First Aid vs LTI vs Fatality — Recorded (total) vs Closed, stacked bars
+  // Observations Closed per Month — driven by the sheet's Closing Date column.
+  // Date filters apply to the CLOSING date here (not the raised date), so this
+  // answers "kis month mein kitni close hui".
+  let closedCd = DATA.obs.slice();
+  if(projFilter) closedCd = closedCd.filter(o=>o.project===projFilter);
+  const cdSkipped = closedCd.filter(o=>o.closingDate && !isUsableDate(o.closingDate)).length;
+  closedCd = closedCd.filter(o=>isUsableDate(o.closingDate) && passDate(o.closingDate));
+  DASH_CLOSED_CD = closedCd;
+  DASH_CD_MONTHS = padMonthsFrom(monthsFromKeys(closedCd.map(o=>ymKey(o.closingDate)), 6), CD_AXIS_START);
+  const cdVals = DASH_CD_MONTHS.map(m=>closedCd.filter(o=>ymKey(o.closingDate)===m.key).length);
+  // once the axis crosses a year boundary a bare "Jan" is ambiguous, so switch to "Jan 26"
+  const cdMultiYear = new Set(DASH_CD_MONTHS.map(m=>m.key.slice(0,4))).size > 1;
+  const cdAxisLabels = DASH_CD_MONTHS.map(m=>cdMultiYear ? m.label+" '"+m.key.slice(2,4) : m.label);
+  renderVBarChart('obsClosedCdChart', cdAxisLabels, cdVals, '#16a34a',
+    'Closing Month', 'Observations Closed', 'showClosedByCdDetail',
+    {fullLabels: DASH_CD_MONTHS.map(m=>m.full), rotateLabels: DASH_CD_MONTHS.length > 10, maxBarWidth: 56}
+  );
+  const cdTotalEl = document.getElementById('closedCdTotal');
+  if(cdTotalEl) cdTotalEl.textContent = closedCd.length + ' closed'
+    + (cdSkipped ? ' · ' + cdSkipped + ' invalid date' + (cdSkipped>1?'s':'') + ' skipped' : '');
+
   const faAll = (DATA.firstaid||[]).filter(f=>(!projFilter || f.project===projFilter) && passDate(f.date));
   DASH_INC_ALL = inc; DASH_FA_ALL = faAll; DASH_LTI_ALL = ltiAll; DASH_FAT_ALL = fatAll;
   const isClosed = s => String(s||'').trim().toLowerCase()==='closed';
@@ -1419,7 +1520,7 @@ function renderKpiDetailModal(title, rows){
       <div style="overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:10px">
         <table class="kpi-detail-table">
           <thead><tr>
-            <th>Date</th><th>Project</th><th>Category</th><th>Issue</th><th>Risk</th><th>Status</th><th>Action Owner</th><th>Dept</th><th>Target</th>
+            <th>Date</th><th>Project</th><th>Category</th><th>Issue</th><th>Risk</th><th>Status</th><th>Action Owner</th><th>Dept</th><th>Target</th><th>Closing Date</th>
           </tr></thead>
           <tbody>
             ${rows.map(r=>`
@@ -1433,6 +1534,7 @@ function renderKpiDetailModal(title, rows){
                 <td>${escapeHtml(r.owner||'—')}</td>
                 <td>${escapeHtml(r.dept||'—')}</td>
                 <td>${escapeHtml(r.target||'—')}</td>
+                <td>${escapeHtml(r.closingDate||'—')}</td>
               </tr>`).join('')}
           </tbody>
         </table>
@@ -1525,6 +1627,15 @@ function showIncFirstAidDetail(label, segment){
 function showProjectRiskDetail(project, risk){
   const rows = (DASH_OPEN_ONGOING||[]).filter(o=>o.project===project && o.risk===risk);
   renderKpiDetailModal(`${project} — ${risk} Risk (Open/Ongoing)`, rows);
+}
+
+/* Click a bar in "Observations Closed per Month" — index is used (not the label)
+   because month labels repeat across years. */
+function showClosedByCdDetail(label, idx){
+  const m = (DASH_CD_MONTHS||[])[idx];
+  if(!m) return;
+  const rows = (DASH_CLOSED_CD||[]).filter(o=>ymKey(o.closingDate)===m.key);
+  renderKpiDetailModal(`Closed in ${m.full} (by Closing Date)`, rows);
 }
 
 const TREND_CAT_LABELS = {recorded:'Recorded', closed:'Closed', ongoing:'Ongoing', overdue:'Overdue'};
@@ -1663,7 +1774,27 @@ function renderStackedRiskBars(id, legendId, items){
 
 
 /* ============================= VIEW SWITCHING ============================= */
+/* Google Sheet Sync tab password ke peechey hai. Yeh sirf casual roak-tok hai —
+   file ka source koi bhi khol kar password parh sakta hai, is liye ise asli
+   security na samjhein. Ek baar unlock karne ke baad tab band hone tak khula rehta hai. */
+const SYNC_PASSWORD = 'omer1234hamza';
+let SYNC_UNLOCKED = sessionStorage.getItem('hse_sync_unlocked') === '1';
+
+function unlockSync(){
+  if(SYNC_UNLOCKED) return true;
+  const entered = prompt('Google Sheet Sync — password daalein:');
+  if(entered === null) return false;            // cancel
+  if(entered.trim() !== SYNC_PASSWORD){
+    toast('Ghalat password');
+    return false;
+  }
+  SYNC_UNLOCKED = true;
+  sessionStorage.setItem('hse_sync_unlocked', '1');
+  return true;
+}
+
 function activateView(tab){
+  if(tab === 'sync' && !unlockSync()) return;
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+tab));
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
 }
