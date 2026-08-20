@@ -32,6 +32,37 @@ input,select,textarea{font-family:inherit;font-size:14px}
 h1,h2,h3{margin:0;font-family:var(--disp);letter-spacing:.2px}
 a{color:inherit}
 
+/* ---------- Violations tab ---------- */
+.vg-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+@media(max-width:1100px){.vg-kpis{grid-template-columns:repeat(2,1fr)}}
+.vg-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.vg-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.vg-ic{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;font-size:22px;color:#fff;flex:0 0 auto}
+.vg-meta{min-width:0}
+.vg-lab{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:700}
+.vg-val{font-family:var(--disp);font-size:30px;line-height:1.1;font-weight:700;color:var(--text)}
+.vg-val.money{font-size:24px}
+.vg-sub{font-size:11.5px;color:var(--faint)}
+.vg-row{display:grid;gap:14px;margin-bottom:14px}
+.vg-2{grid-template-columns:1fr 1fr}
+.vg-2-3{grid-template-columns:2fr 3fr}
+.vg-3-2{grid-template-columns:3fr 2fr}
+@media(max-width:1000px){.vg-2,.vg-2-3,.vg-3-2{grid-template-columns:1fr}}
+.vg-rv{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line2)}
+.vg-rv:last-child{border-bottom:0}
+.vg-rv .t{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vg-rv .m{font-size:11.5px;color:var(--faint);margin-top:2px}
+.vg-common{text-align:center;padding:14px 6px}
+.vg-common .cap{font-size:12px;color:var(--muted);font-weight:600}
+.vg-common .big{font-family:var(--disp);font-size:22px;font-weight:700;margin-top:6px;color:var(--text)}
+.vg-common .rule{width:44px;height:3px;border-radius:2px;background:var(--overdue);margin:8px auto 0}
+.vg-tc{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line2);font-size:12.5px}
+.vg-tc:last-child{border-bottom:0}
+.vg-tc .rk{width:22px;height:22px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--muted)}
+.vg-tc .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.vg-tc .ct{font-weight:700;color:var(--critical)}
+.vg-empty{color:var(--faint);font-size:12.5px;padding:14px 2px}
+
 /* ---------- Header ---------- */
 header.topbar{background:linear-gradient(180deg,var(--ink),var(--ink2));color:#fff;position:sticky;top:0;z-index:40;box-shadow:0 2px 12px rgba(0,0,0,.25)}
 .hazard{height:5px;background:repeating-linear-gradient(135deg,var(--hazard) 0 16px,#1b2318 16px 32px)}
@@ -228,6 +259,8 @@ td .cell-textarea{min-height:44px;resize:vertical}
     </div>
     <nav class="tabs" id="tabs">
       <button data-tab="dashboard" class="active" onclick="activateView('dashboard')">📊 Dashboard</button>
+      <button data-tab="violations" onclick="activateView('violations')">🚫 Violations</button>
+      <button data-tab="ims" onclick="activateView('ims')">🗓️ IMS Schedule</button>
       <button data-tab="sync" onclick="activateView('sync')">🔗 Google Sheet Sync</button>
     </nav>
     <span class="spacer"></span>
@@ -377,6 +410,16 @@ td .cell-textarea{min-height:44px;resize:vertical}
       </div>
     </div>
 
+  </section>
+
+
+  <section class="view" id="view-ims">
+    <div class="section-head">
+      <div><div class="eyebrow">Implementation</div><h2>IMS Schedule</h2></div>
+      <div class="spacer"></div>
+      <span class="view-note">Live data — IMS SCHEDULE sheet tab</span>
+    </div>
+
     <div class="panel" style="margin-bottom:14px">
       <h3>🚦 IMS Schedule — Overall Progress</h3>
       <div class="kpis" id="imsProgressKpis" style="margin-bottom:12px"></div>
@@ -395,6 +438,82 @@ td .cell-textarea{min-height:44px;resize:vertical}
     </div>
   </section>
 
+  <section class="view" id="view-violations">
+    <div class="section-head">
+      <div><div class="eyebrow">Compliance</div><h2>Safety Violations</h2></div>
+      <div class="spacer"></div>
+      <div class="dash-filter"><label style="font-size:12px;color:var(--muted);margin-right:6px">Project</label>
+        <select id="viol-project" class="filter" onchange="renderViolationsView()"><option value="">All Projects</option></select>
+      </div>
+      <div class="dash-filter"><label style="font-size:12px;color:var(--muted);margin-right:6px">Month</label>
+        <select id="viol-month" class="filter" onchange="renderViolationsView()"><option value="">All Months</option></select>
+      </div>
+      <div class="dash-filter"><label style="font-size:12px;color:var(--muted);margin-right:6px">From</label>
+        <input type="date" id="viol-from" class="filter" onchange="renderViolationsView()">
+      </div>
+      <div class="dash-filter"><label style="font-size:12px;color:var(--muted);margin-right:6px">To</label>
+        <input type="date" id="viol-to" class="filter" onchange="renderViolationsView()">
+      </div>
+      <button class="btn sm ghost" onclick="clearViolFilters()">✕ Clear filters</button>
+      <span class="view-note">Live data — VIOLATIONS sheet tab</span>
+    </div>
+
+    <div class="vg-kpis" id="violKpis"></div>
+
+    <div class="vg-row vg-2-3">
+      <div class="panel">
+        <h3>🥧 Violation Categories</h3>
+        <div class="donut-wrap"><svg class="donut" id="donutViolCat" viewBox="0 0 42 42"></svg><div class="legend" id="violCatLegend"></div></div>
+      </div>
+      <div class="panel">
+        <h3>📈 Monthly Violations Trend</h3>
+        <svg class="linechart" id="violTrendChart" viewBox="0 0 560 240"></svg>
+        <div class="legend-row" id="violTrendLegend"></div>
+      </div>
+    </div>
+
+    <div class="vg-row vg-2">
+      <div class="panel">
+        <h3>🏆 Top 10 Contractors by Violations</h3>
+        <svg class="vbarchart" id="violContractorChart" viewBox="0 0 560 260"></svg>
+      </div>
+      <div class="panel">
+        <h3>🛡️ Severity Analysis</h3>
+        <svg id="violRadar" style="width:100%;height:auto" viewBox="0 0 340 300"></svg>
+        <div class="legend-row" id="violRadarLegend"></div>
+      </div>
+    </div>
+
+    <div class="vg-row vg-3-2">
+      <div class="panel">
+        <h3>🕒 Recent Violations <span class="count" id="violRecentCount"></span>
+          <button class="btn sm ghost" style="float:right" onclick="showViolKpi('total')">View all →</button>
+        </h3>
+        <div id="violRecentList" style="margin-top:8px"></div>
+      </div>
+      <div>
+        <div class="panel" style="margin-bottom:14px">
+          <h3>⭐ Most Common</h3>
+          <div id="violMostCommon"></div>
+        </div>
+        <div class="panel">
+          <h3>🏢 Top Contractors</h3>
+          <div id="violTopContractors"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="vg-row vg-2">
+      <div class="panel">
+        <h3>💰 Penalty / Fine Amount per Month</h3>
+        <svg class="vbarchart" id="violPenaltyChart" viewBox="0 0 560 220"></svg>
+      </div>
+      <div class="panel">
+        <h3>🚦 Violations by Status <span class="count" id="violStatusTotal"></span></h3>
+        <div class="donut-wrap"><svg class="donut" id="donutViolStatus" viewBox="0 0 42 42"></svg><div class="legend" id="violStatusLegend"></div></div>
+      </div>
+    </div>
+  </section>
 
 </main>
 
@@ -582,6 +701,30 @@ const REGISTERS = {
       {key:'investigationStatus',label:'Investigation Status',type:'select',source:'statusList',badge:'st'},
       {key:'actionTaken',label:'Action Taken',type:'textarea'},
       {key:'reportedTo',label:'Reported To (Authority)',type:'text'},
+      {key:'remarks',label:'Remarks',type:'textarea'},
+    ]
+  },
+  violations:{
+    label:'Violations', icon:'🚫', sheetTab:'VIOLATIONS',
+    columns:[
+      {key:'no',label:'Violation No.',type:'text'},
+      {key:'month',label:'Month',type:'text'},
+      {key:'date',label:'Date',type:'date'},
+      {key:'time',label:'Time',type:'text'},
+      {key:'name',label:'Name',type:'text'},
+      {key:'designation',label:'Designation',type:'text'},
+      {key:'project',label:'Project',type:'select',source:'projects'},
+      {key:'location',label:'Location',type:'text'},
+      {key:'company',label:'Company / Contractor',type:'text'},
+      {key:'category',label:'Violation Category',type:'text'},
+      {key:'risk',label:'Risk Level',type:'select',source:'riskLevels',badge:'risk'},
+      {key:'supervisor',label:'Supervisor Available',type:'text'},
+      {key:'workers',label:'Workers Involved',type:'number'},
+      {key:'description',label:'Violation Description',type:'textarea'},
+      {key:'contractorComments',label:'Contractor Comments',type:'textarea'},
+      {key:'penalty',label:'Penalty / Fine Amount',type:'number'},
+      {key:'recoveryIpc',label:'Approved Recovery from IPC No.',type:'text'},
+      {key:'status',label:'Status',type:'select',source:'statusList',badge:'st'},
       {key:'remarks',label:'Remarks',type:'textarea'},
     ]
   },
@@ -1500,6 +1643,248 @@ function renderDashboard(){
   renderImsCharts();
 }
 
+/* ============================= SAFETY VIOLATIONS ============================= */
+let DASH_VIOL = [];
+let DASH_VIOL_MONTHS = [];
+let DASH_VIOL_SETS = {};
+const VIOL_KPI_TITLES = {
+  total:'All Violations', today:'Violations — Today', week:'Violations — Last 7 Days',
+  month:'Violations — Last 30 Days', repeat:'Repeat Offenders (2+ violations)',
+  penalty:'Violations with a Penalty', paid:'Paid Penalties (Closed)', pending:'Pending Penalties'
+};
+function violIsClosed(s){ return String(s||'').trim().toLowerCase()==='closed'; }
+function violNum(v){ const n = Number(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; }
+function violMoney(n){ return Math.round(n).toLocaleString('en-US'); }
+function violCatOf(v){ return String(v.category||'').trim() || 'Uncategorized'; }
+
+function populateViolFilters(){
+  const projSel = document.getElementById('viol-project');
+  if(projSel){
+    const cur = projSel.value;
+    const projs = [...new Set((DATA.violations||[]).map(v=>String(v.project||'').trim()).filter(Boolean))].sort();
+    projSel.innerHTML = '<option value="">All Projects</option>' + projs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+    if(projs.includes(cur)) projSel.value = cur;
+  }
+  const moSel = document.getElementById('viol-month');
+  if(moSel){
+    const cur = moSel.value;
+    const keys = [...new Set((DATA.violations||[]).map(v=>ymKey(v.date)).filter(Boolean))].sort().reverse();
+    moSel.innerHTML = '<option value="">All Months</option>' + keys.map(k=>{
+      const [y,m] = k.split('-').map(Number);
+      return `<option value="${k}">${new Date(y,m-1,1).toLocaleString('en-US',{month:'short',year:'numeric'})}</option>`;
+    }).join('');
+    if(keys.includes(cur)) moSel.value = cur;
+  }
+}
+function clearViolFilters(){
+  ['viol-project','viol-month','viol-from','viol-to'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  renderViolationsView();
+}
+
+const VIOL_CAT_COLORS = ['#dc2626','#ea580c','#f59e0b','#0f7a4d','#2563eb','#7c3aed','#0891b2','#be185d','#65a30d','#475569','#b45309','#0ea5e9'];
+const VIOL_SEV_COLORS = {Low:'#16a34a', Medium:'#facc15', High:'#fb923c', Critical:'#dc2626'};
+
+function violRadar(svgId, legendId, axes, series){
+  const el=document.getElementById(svgId); if(!el) return;
+  const W=340,H=300,cx=170,cy=140,R=105;
+  if(!axes.length){ el.innerHTML=`<text x="${cx}" y="${cy}" text-anchor="middle" font-size="12" fill="#8a988c">No data</text>`; if(legendId) document.getElementById(legendId).innerHTML=''; return; }
+  const maxVal = Math.max(1, ...series.flatMap(s=>s.values));
+  const ang = i => (-Math.PI/2) + i*(2*Math.PI/axes.length);
+  const pt = (i,v) => [cx + Math.cos(ang(i))*R*(v/maxVal), cy + Math.sin(ang(i))*R*(v/maxVal)];
+  let grid='';
+  for(let r=1;r<=4;r++){
+    const pts = axes.map((_,i)=>{ const x=cx+Math.cos(ang(i))*R*(r/4), y=cy+Math.sin(ang(i))*R*(r/4); return `${x.toFixed(1)},${y.toFixed(1)}`; }).join(' ');
+    grid += `<polygon points="${pts}" fill="none" stroke="#e9efe9" stroke-width="1"/>`;
+  }
+  axes.forEach((a,i)=>{
+    const x=cx+Math.cos(ang(i))*R, y=cy+Math.sin(ang(i))*R;
+    grid += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e9efe9" stroke-width="1"/>`;
+    const lx = cx+Math.cos(ang(i))*(R+16), ly = cy+Math.sin(ang(i))*(R+16);
+    const anchor = Math.abs(lx-cx)<6 ? 'middle' : (lx>cx ? 'start' : 'end');
+    const short = String(a).length>16 ? String(a).slice(0,15)+'…' : String(a);
+    grid += `<text x="${lx.toFixed(1)}" y="${(ly+3).toFixed(1)}" font-size="9" fill="#5c6b60" text-anchor="${anchor}"><title>${escapeHtml(String(a))}</title>${escapeHtml(short)}</text>`;
+  });
+  let polys='';
+  series.filter(sr=>sr.values.some(v=>v>0)).forEach(sr=>{
+    const pts = sr.values.map((v,i)=>pt(i,v).map(n=>n.toFixed(1)).join(',')).join(' ');
+    polys += `<polygon points="${pts}" fill="${sr.color}" fill-opacity="0.16" stroke="${sr.color}" stroke-width="2"/>`;
+    polys += sr.values.map((v,i)=>{ const [x,y]=pt(i,v); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.6" fill="${sr.color}"><title>${escapeHtml(sr.label)} · ${escapeHtml(String(axes[i]))}: ${v}</title></circle>`; }).join('');
+  });
+  el.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  el.innerHTML = grid+polys;
+  if(legendId) document.getElementById(legendId).innerHTML = series.map(sr=>`<span class="lg-item"><span class="sw" style="background:${sr.color}"></span>${escapeHtml(sr.label)}</span>`).join('');
+}
+
+function renderViolationsView(){
+  if(!document.getElementById('violKpis')) return;
+  const projFilter = (document.getElementById('viol-project')||{}).value || '';
+  const monthFilter = (document.getElementById('viol-month')||{}).value || '';
+  const fromFilter = (document.getElementById('viol-from')||{}).value || '';
+  const toFilter = (document.getElementById('viol-to')||{}).value || '';
+  const passDate = d => {
+    if(!monthFilter && !fromFilter && !toFilter) return true;
+    if(!d) return false;
+    if(monthFilter && ymKey(d)!==monthFilter) return false;
+    if(fromFilter && d<fromFilter) return false;
+    if(toFilter && d>toFilter) return false;
+    return true;
+  };
+  const base = (DATA.violations||[]).filter(v=>!projFilter || String(v.project||'').trim()===projFilter);
+  const rows = base.filter(v=>passDate(v.date));
+  const anchorKey = monthFilter || (toFilter ? toFilter.slice(0,7) : null);
+  const months6 = anchorKey ? lastMonths(6, anchorKey) : monthsFromData(rows, 6);
+  const catLabels = months6.map(m=>m.label);
+  DASH_VIOL = rows;
+  DASH_VIOL_MONTHS = months6;
+
+  // ---- KPI cards ----
+  const today = new Date(); today.setHours(0,0,0,0);
+  const iso = dt => dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  const todayIso = iso(today);
+  const wkAgo = new Date(today); wkAgo.setDate(wkAgo.getDate()-6);
+  const moAgo = new Date(today); moAgo.setDate(moAgo.getDate()-29);
+  const dayRows = base.filter(v=>v.date===todayIso);
+  const weekRows = base.filter(v=>v.date && v.date>=iso(wkAgo) && v.date<=todayIso);
+  const monthRows = base.filter(v=>v.date && v.date>=iso(moAgo) && v.date<=todayIso);
+  const nameCount = {};
+  rows.forEach(v=>{ const n=String(v.name||'').trim(); if(n) nameCount[n]=(nameCount[n]||0)+1; });
+  const repeatNames = Object.keys(nameCount).filter(n=>nameCount[n]>=2);
+  const totalPenalty = rows.reduce((s,v)=>s+violNum(v.penalty),0);
+  const paidPenalty = rows.filter(v=>violIsClosed(v.status)).reduce((s,v)=>s+violNum(v.penalty),0);
+  const pendingPenalty = totalPenalty - paidPenalty;
+  DASH_VIOL_SETS = {
+    total:rows, today:dayRows, week:weekRows, month:monthRows,
+    repeat:rows.filter(v=>repeatNames.includes(String(v.name||'').trim())),
+    penalty:rows.filter(v=>violNum(v.penalty)>0),
+    paid:rows.filter(v=>violIsClosed(v.status) && violNum(v.penalty)>0),
+    pending:rows.filter(v=>!violIsClosed(v.status) && violNum(v.penalty)>0)
+  };
+  const cards = [
+    ['total','📋','#1e3a5f','Total Violations', rows.length, 'Selected filter', false],
+    ['today','📅','#2563eb','Today', dayRows.length, today.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}), false],
+    ['week','🗓️','#0891b2','This Week', weekRows.length, 'Last 7 days', false],
+    ['month','📆','#7c3aed','This Month', monthRows.length, 'Last 30 days', false],
+    ['repeat','👤','#e11d48','Repeat Offenders', repeatNames.length, '2+ violations', false],
+    ['penalty','💵','#ea580c','Total Penalty', totalPenalty, 'All fines issued', true],
+    ['paid','✅','#16a34a','Paid Penalties', paidPenalty, 'Status = Closed', true],
+    ['pending','⏳','#f59e0b','Pending Penalties', pendingPenalty, 'Not yet closed', true],
+  ];
+  document.getElementById('violKpis').innerHTML = cards.map(([k,ic,col,lab,val,sub,money])=>`
+    <div class="vg-card" onclick="showViolKpi('${k}')">
+      <div class="vg-ic" style="background:${col}">${ic}</div>
+      <div class="vg-meta">
+        <div class="vg-lab">${lab}</div>
+        <div class="vg-val${money?' money':''}">${money ? 'PKR '+violMoney(val) : val}</div>
+        <div class="vg-sub">${escapeHtml(sub)}</div>
+      </div>
+    </div>`).join('');
+
+  // ---- Violation categories donut ----
+  const catMap = {};
+  rows.forEach(v=>{ const c=violCatOf(v); catMap[c]=(catMap[c]||0)+1; });
+  const cats = Object.keys(catMap).sort((a,b)=>catMap[b]-catMap[a]);
+  renderDonut('donutViolCat','violCatLegend', cats.map((c,i)=>({label:c, val:catMap[c], color:VIOL_CAT_COLORS[i%VIOL_CAT_COLORS.length]})));
+
+  // ---- Monthly trend line ----
+  renderLineChart('violTrendChart', catLabels, [
+    {label:'Violations', color:'#dc2626', values: months6.map(m=>rows.filter(v=>ymKey(v.date)===m.key).length)},
+  ]);
+  document.getElementById('violTrendLegend').innerHTML = `<span class="lg-item"><span class="sw" style="background:#dc2626"></span>Violations</span>`;
+
+  // ---- Top 10 contractors ----
+  const compMap = {};
+  rows.forEach(v=>{ const c=String(v.company||'').trim()||'N/A'; compMap[c]=(compMap[c]||0)+1; });
+  const comps = Object.keys(compMap).sort((a,b)=>compMap[b]-compMap[a]).slice(0,10);
+  renderVBarChart('violContractorChart', comps, comps.map(c=>compMap[c]), '#f59e0b', '', 'Violations', 'showViolCompanyDetail', {rotateLabels:true, maxBarWidth:46});
+
+  // ---- Severity radar (risk level across top categories) ----
+  const radarAxes = cats.slice(0,6);
+  const sevSeries = MASTER.riskLevels.map(lv=>({
+    label: lv, color: VIOL_SEV_COLORS[lv]||'#999',
+    values: radarAxes.map(c=>rows.filter(v=>violCatOf(v)===c && String(v.risk||'').trim()===lv).length)
+  }));
+  violRadar('violRadar','violRadarLegend', radarAxes, sevSeries);
+
+  // ---- Recent violations ----
+  const recent = rows.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6);
+  document.getElementById('violRecentCount').textContent = rows.length+' total';
+  document.getElementById('violRecentList').innerHTML = recent.length ? recent.map(v=>`
+    <div class="vg-rv">
+      ${badgeHtml('risk', v.risk)}
+      <div style="flex:1;min-width:0">
+        <div class="t">${escapeHtml(v.description || violCatOf(v))}</div>
+        <div class="m">${escapeHtml(v.no||'—')} · ${escapeHtml(v.name||'—')} · ${escapeHtml(v.company||'—')} · ${escapeHtml(v.date||'—')} · PKR ${escapeHtml(violMoney(violNum(v.penalty)))}</div>
+      </div>
+      <div>${badgeHtml('st', v.status)}</div>
+    </div>`).join('') : '<div class="vg-empty">No violations yet.</div>';
+
+  // ---- Most common category ----
+  document.getElementById('violMostCommon').innerHTML = cats.length ? `
+    <div class="vg-common">
+      <div class="cap">Top Violation Category</div>
+      <div class="big">${escapeHtml(cats[0])}</div>
+      <div class="vg-sub" style="margin-top:4px">${catMap[cats[0]]} of ${rows.length} violations</div>
+      <div class="rule"></div>
+    </div>` : '<div class="vg-empty">No data.</div>';
+
+  // ---- Top contractors list ----
+  document.getElementById('violTopContractors').innerHTML = comps.length ? comps.slice(0,5).map((c,i)=>`
+    <div class="vg-tc" style="cursor:pointer" onclick="showViolCompanyDetail('${jsStr(c)}')">
+      <div class="rk">${i+1}</div><div class="nm" title="${escapeHtml(c)}">${escapeHtml(c)}</div><div class="ct">${compMap[c]}</div>
+    </div>`).join('') : '<div class="vg-empty">No data.</div>';
+
+  // ---- Penalty per month + status donut ----
+  renderVBarChart('violPenaltyChart', catLabels, months6.map(m=>rows.filter(v=>ymKey(v.date)===m.key).reduce((s,v)=>s+violNum(v.penalty),0)), '#7c3aed');
+  const stColors = {Open:'#dc2626',Ongoing:'#facc15',Closed:'#16a34a'};
+  const extraSt = [...new Set(rows.map(v=>String(v.status||'').trim()).filter(Boolean))].filter(x=>!MASTER.statusList.includes(x));
+  const stList = MASTER.statusList.concat(extraSt.sort());
+  renderDonut('donutViolStatus','violStatusLegend', stList.map(x=>({label:x, val:rows.filter(v=>String(v.status||'').trim()===x).length, color:stColors[x]||'#64748b'})));
+  document.getElementById('violStatusTotal').textContent = rows.length+' total';
+}
+
+
+function renderViolationDetailModal(title, rows){
+  const cols = REGISTERS.violations.columns;
+  rows = rows.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  document.getElementById('kpiModalTitle').textContent = `${title} (${rows.length})`;
+  const body = document.getElementById('kpiModalBody');
+  if(!rows.length){
+    body.innerHTML = '<div class="empty" style="padding:30px"><div class="e-ic">🗂️</div>No entries found for this filter.</div>';
+  } else {
+    body.innerHTML = `
+      <div style="overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:10px">
+        <table class="kpi-detail-table">
+          <thead><tr>${cols.map(c=>`<th>${escapeHtml(c.label)}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${rows.map(r=>`<tr>${cols.map(c=>{
+              if(c.badge) return `<td>${badgeHtml(c.badge, r[c.key])}</td>`;
+              let v = r[c.key];
+              v = (v==null||v==='') ? '—' : String(v);
+              if(c.type==='textarea' && v.length>140) v = v.slice(0,140)+'…';
+              return `<td>${escapeHtml(v)}</td>`;
+            }).join('')}</tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+  document.getElementById('kpiModalBg').classList.add('show');
+}
+function showViolKpi(kind){
+  const rows = (DASH_VIOL_SETS && DASH_VIOL_SETS[kind]) ? DASH_VIOL_SETS[kind] : (DASH_VIOL||[]);
+  renderViolationDetailModal(VIOL_KPI_TITLES[kind]||'Violations', rows);
+}
+function showViolCompanyDetail(label){
+  renderViolationDetailModal(`Violations — ${label}`, (DASH_VIOL||[]).filter(v=>(String(v.company||'').trim()||'N/A')===label));
+}
+function showViolCatDetail(label){
+  renderViolationDetailModal(`Violations — ${label}`, (DASH_VIOL||[]).filter(v=>violCatOf(v)===label));
+}
+function showViolMonthDetail(label, idx){
+  const m = (DASH_VIOL_MONTHS||[])[idx];
+  if(!m) return;
+  renderViolationDetailModal(`Violations — ${m.label} ${m.key.slice(0,4)}`, (DASH_VIOL||[]).filter(v=>ymKey(v.date)===m.key));
+}
+
 function pct(v,total){ return total? Math.round(v/total*100) : 0; }
 
 /* ============================= KPI DRILL-DOWN MODAL ============================= */
@@ -1901,7 +2286,7 @@ function rowsFromGviz(regKey, json){
 function rebuildDynamicMaster(){
   const PROJECT_EXCLUDE = new Set(['V-3','Between V1 & V2']);
   const projSet = new Set(), deptSet = new Set(), ownerSet = new Set();
-  ['obs','incidents','induction','training','audits','firstaid','lti','fatality'].forEach(k=>{
+  ['obs','incidents','induction','training','audits','firstaid','lti','fatality','violations'].forEach(k=>{
     (DATA[k]||[]).forEach(r=>{
       if(r.project && !PROJECT_EXCLUDE.has(String(r.project).trim())) projSet.add(String(r.project).trim());
       if(r.dept||r.department) deptSet.add(String(r.dept||r.department).trim());
@@ -1929,6 +2314,8 @@ async function loadAllFromSheet(manual){
   populateDashProjectFilter();
   populateDashMonthFilter();
   renderDashboard();
+  populateViolFilters();
+  renderViolationsView();
   if(anyOk){
     setSyncStatus('Synced '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
     if(manual) toast(anyFail ? 'Sync ho gaya, kuch tabs nahi milin' : 'Dashboard Google Sheet sey sync ho gaya');
@@ -1956,6 +2343,7 @@ function disconnectSheet(){
   Object.keys(REGISTERS).forEach(k=>{ DATA[k]=[]; });
   document.getElementById('sheetIdInput').value = '';
   populateDashProjectFilter(); populateDashMonthFilter(); renderDashboard();
+  populateViolFilters(); renderViolationsView();
   setSyncStatus('Not connected');
   toast('Google Sheet disconnect ho gayi');
 }
@@ -1979,6 +2367,8 @@ function init(){
   populateDashProjectFilter();
   populateDashMonthFilter();
   renderDashboard();
+  populateViolFilters();
+  renderViolationsView();
   if(SHEET_ID){
     document.getElementById('sheetIdInput').value = SHEET_ID;
     loadAllFromSheet(false);
