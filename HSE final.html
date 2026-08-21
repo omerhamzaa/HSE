@@ -469,7 +469,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
         <div class="donut-wrap"><svg class="donut" id="donutViolCat" viewBox="0 0 42 42"></svg><div class="legend" id="violCatLegend"></div></div>
       </div>
       <div class="panel">
-        <h3>📈 Monthly Violations Trend</h3>
+        <h3>📈 Monthly Violations Trend <span class="count" id="violTrendNote"></span></h3>
         <svg class="vbarchart" id="violTrendChart" viewBox="0 0 560 240"></svg>
         <div class="legend-row" id="violTrendLegend"></div>
       </div>
@@ -831,7 +831,7 @@ function guessColumnForField(fieldLabel, fieldKey, headers){
   return -1;
 }
 
-function parseFlexibleDate(raw){
+function parseFlexibleDate(raw, order){
   const s = String(raw||'').trim();
   if(!s) return '';
   if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // already ISO
@@ -841,9 +841,38 @@ function parseFlexibleDate(raw){
     const mo = months[m[2].slice(0,3).toLowerCase()];
     if(mo){ let yr = m[3].length===2 ? (2000+Number(m[3])) : Number(m[3]); return `${yr}-${String(mo).padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
   }
-  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/); // 05/20/2026 or 20/05/2026 (assume D/M/Y)
-  if(m){ let yr=m[3].length===2?(2000+Number(m[3])):Number(m[3]); return `${yr}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`; }
+  // 8/17/2026 (M/D/Y) ya 17/8/2026 (D/M/Y) — dono chaltay hain
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if(m){
+    const a = Number(m[1]), b = Number(m[2]);
+    let mo, day;
+    if(a > 12 && b <= 12){ day = a; mo = b; }            // 17/8 -> D/M
+    else if(b > 12 && a <= 12){ mo = a; day = b; }        // 8/17 -> M/D
+    else if(order === 'mdy'){ mo = a; day = b; }          // dono <=12: column ka rujhan
+    else { day = a; mo = b; }
+    if(mo>=1 && mo<=12 && day>=1 && day<=31){
+      const yr = m[3].length===2 ? (2000+Number(m[3])) : Number(m[3]);
+      return `${yr}-${String(mo).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    }
+  }
   return s; // unrecognized — leave as-is
+}
+
+/* Ek date column ko dekh kar bata deta hai ke wo M/D/Y hai ya D/M/Y.
+   Agar kisi bhi cell ka doosra hissa 12 se bara hai to column M/D/Y hai
+   (8/17/2026), aur agar pehla hissa 12 se bara hai to D/M/Y (17/8/2026). */
+function inferDateOrder(values){
+  let mdy=0, dmy=0;
+  (values||[]).forEach(v=>{
+    const m = String(v||'').trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+    if(!m) return;
+    const a=Number(m[1]), b=Number(m[2]);
+    if(b>12 && a<=12) mdy++;
+    else if(a>12 && b<=12) dmy++;
+  });
+  if(mdy && !dmy) return 'mdy';
+  if(dmy && !mdy) return 'dmy';
+  return mdy>dmy ? 'mdy' : 'dmy';   // barabari ya koi saboot nahi -> D/M/Y
 }
 
 function populateDashProjectFilter(){
@@ -954,6 +983,75 @@ function monthsFromKeys(keys, fallbackN){
 /* Month axis ko peeche se pad karta hai — jo mahine data mein nahi hain woh
    0 ke saath dikhtay hain. Closed-per-month chart April se start hota hai. */
 const CD_AXIS_START = '2026-04';
+const FY_START_MONTH = 4;   // axis hamesha April se shuru hota hai
+const MONTH_ABBR = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+
+/* Kisi violation row ka month key (YYYY-MM).
+   Pehle Date column dekhta hai; agar wo khali ya na-samajh format mein ho to
+   sheet ke "Month" column se kaam chalata hai ("Aug", "August 2026", "8/2026",
+   "Aug-26" sab chal jate hain). Warna null. */
+function violMonthKey(v){
+  if(!v) return null;
+  const k = ymKey(v.date);
+  if(k && /^\d{4}-\d{2}$/.test(k)) return k;
+  const s = String(v.month||'').trim();
+  if(!s) return null;
+  const pad = n => String(n).padStart(2,'0');
+  let m = s.match(/^(\d{4})[-\/](\d{1,2})$/);            // 2026-08
+  if(m) return m[1]+'-'+pad(m[2]);
+  m = s.match(/^(\d{1,2})[-\/](\d{4})$/);                // 8/2026
+  if(m) return m[2]+'-'+pad(m[1]);
+  m = s.match(/([A-Za-z]{3,})/);                          // August / Aug-26 / Aug 2026
+  if(m){
+    const mo = MONTH_ABBR[m[1].slice(0,3).toLowerCase()];
+    if(mo){
+      const ym = s.match(/(\d{2,4})\s*$/);
+      let yr = ym ? Number(ym[1]) : new Date().getFullYear();
+      if(yr < 100) yr += 2000;
+      return yr+'-'+pad(mo);
+    }
+  }
+  return null;
+}
+
+/* Do month keys (YYYY-MM) ke darmiyan ka poora axis banata hai — jin mahinon
+   ka data nahi hota woh bhi naam ke saath aatay hain (bar sirf 0 height ka). */
+function monthsBetween(startKey, endKey, maxSpan){
+  maxSpan = maxSpan || 18;
+  const label = k => {
+    const [y,m] = k.split('-').map(Number);
+    const dt = new Date(y, m-1, 1);
+    return {key:k, label: dt.toLocaleString('en-US',{month:'short'}), full: dt.toLocaleString('en-US',{month:'short',year:'numeric'})};
+  };
+  let [y1,m1] = startKey.split('-').map(Number);
+  const [y2,m2] = endKey.split('-').map(Number);
+  let span = (y2-y1)*12 + (m2-m1) + 1;
+  if(span < 1) return [label(endKey)];
+  while(span > maxSpan){ m1++; if(m1>12){ m1=1; y1++; } span--; }   // zyada lamba ho to aage se kaato
+  const out=[]; let y=y1, m=m1;
+  while(y<y2 || (y===y2 && m<=m2)){
+    out.push(label(y+'-'+String(m).padStart(2,'0')));
+    m++; if(m>12){ m=1; y++; }
+  }
+  return out;
+}
+
+/* Violations ka month axis: April se le kar aakhri data wale mahine (ya
+   maujooda mahine, jo baad mein ho) tak — chahe beech ke mahinon mein
+   entry ho ya na ho. */
+function violMonthAxis(rows){
+  const now = new Date();
+  const nowKey = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const keys = (rows||[]).map(violMonthKey).filter(k=>/^\d{4}-\d{2}$/.test(String(k||''))).sort();
+  const firstData = keys.length ? keys[0] : null;
+  const lastData  = keys.length ? keys[keys.length-1] : null;
+  const endKey = (lastData && lastData > nowKey) ? lastData : nowKey;
+  const [ey, em] = endKey.split('-').map(Number);
+  // April us saal ki, magar agar abhi April se pehle hain to pichlay saal ki April
+  let startKey = (em >= FY_START_MONTH ? ey : ey-1) + '-' + String(FY_START_MONTH).padStart(2,'0');
+  if(firstData && firstData < startKey) startKey = firstData;   // purana data chhupao mat
+  return monthsBetween(startKey, endKey, 18);
+}
 function padMonthsFrom(months, startKey){
   if(!/^\d{4}-\d{2}$/.test(String(startKey||''))) return months;
   const label = k => {
@@ -1726,7 +1824,7 @@ function populateViolFilters(){
   const moSel = document.getElementById('viol-month');
   if(moSel){
     const cur = moSel.value;
-    const keys = [...new Set((DATA.violations||[]).map(v=>ymKey(v.date)).filter(Boolean))].sort().reverse();
+    const keys = [...new Set((DATA.violations||[]).map(violMonthKey).filter(Boolean))].sort().reverse();
     moSel.innerHTML = '<option value="">All Months</option>' + keys.map(k=>{
       const [y,m] = k.split('-').map(Number);
       return `<option value="${k}">${new Date(y,m-1,1).toLocaleString('en-US',{month:'short',year:'numeric'})}</option>`;
@@ -1828,10 +1926,11 @@ function renderViolationsView(){
   const monthFilter = (document.getElementById('viol-month')||{}).value || '';
   const fromFilter = (document.getElementById('viol-from')||{}).value || '';
   const toFilter = (document.getElementById('viol-to')||{}).value || '';
-  const passDate = d => {
+  const passDate = v => {
     if(!monthFilter && !fromFilter && !toFilter) return true;
-    if(!d) return false;
-    if(monthFilter && ymKey(d)!==monthFilter) return false;
+    if(monthFilter && violMonthKey(v)!==monthFilter) return false;
+    const d = v.date;
+    if((fromFilter || toFilter) && !d) return false;
     if(fromFilter && d<fromFilter) return false;
     if(toFilter && d>toFilter) return false;
     return true;
@@ -1841,11 +1940,11 @@ function renderViolationsView(){
     (!projFilter || String(v.project||'').trim()===projFilter) &&
     (!compFilter || String(v.company||'').trim()===compFilter)
   );
-  const rows = base.filter(v=>passDate(v.date));
+  const rows = base.filter(passDate);
   const anchorKey = monthFilter || (toFilter ? toFilter.slice(0,7) : null);
   // axis April se shuru hota hai — jin mahinon ka data nahi, unka naam phir bhi
   // x-axis par aata hai (bar zero height ka hoga)
-  const months6 = anchorKey ? lastMonths(6, anchorKey) : padMonthsFrom(monthsFromData(rows, 6), CD_AXIS_START);
+  const months6 = anchorKey ? lastMonths(6, anchorKey) : violMonthAxis(rows);
   const catLabels = months6.map(m=>m.label);
   DASH_VIOL = rows;
   DASH_VIOL_MONTHS = months6;
@@ -1899,7 +1998,7 @@ function renderViolationsView(){
   renderDonut('donutViolCat','violCatLegend', cats.map((c,i)=>({label:c, val:catMap[c], color:VIOL_CAT_COLORS[i%VIOL_CAT_COLORS.length]})));
 
   // ---- Monthly trend line ----
-  renderVBarChart('violTrendChart', catLabels, months6.map(m=>rows.filter(v=>ymKey(v.date)===m.key).length), '#dc2626',
+  renderVBarChart('violTrendChart', catLabels, months6.map(m=>rows.filter(v=>violMonthKey(v)===m.key).length), '#dc2626',
     '', 'Violations', null, {maxBarWidth:56, fullLabels: months6.map(m=>m.full||m.label)});
   document.getElementById('violTrendLegend').innerHTML = `<span class="lg-item"><span class="sw" style="background:#dc2626"></span>Violations</span>`;
 
@@ -1946,7 +2045,7 @@ function renderViolationsView(){
     </div>`).join('') : '<div class="vg-empty">No data.</div>';
 
   // ---- Penalty per month + status donut ----
-  renderVBarChart('violPenaltyChart', catLabels, months6.map(m=>rows.filter(v=>ymKey(v.date)===m.key).reduce((s,v)=>s+violNum(v.penalty),0)), '#7c3aed');
+  renderVBarChart('violPenaltyChart', catLabels, months6.map(m=>rows.filter(v=>violMonthKey(v)===m.key).reduce((s,v)=>s+violNum(v.penalty),0)), '#7c3aed');
 
   // ---- Penalty: Total vs Paid vs Pending ----
   violPenaltyStatusChart('violPenStatusChart', [
@@ -1954,6 +2053,9 @@ function renderViolationsView(){
     {label:'Paid (Closed)', value: paidPenalty, color:'#16a34a', kpi:'paid', count: DASH_VIOL_SETS.paid.length},
     {label:'Pending', value: pendingPenalty, color:'#f59e0b', kpi:'pending', count: DASH_VIOL_SETS.pending.length},
   ]);
+  const unplaced = rows.filter(v=>!violMonthKey(v)).length;
+  const trendNoteEl = document.getElementById('violTrendNote');
+  if(trendNoteEl) trendNoteEl.textContent = unplaced ? unplaced+' record'+(unplaced>1?'s':'')+' bina date/month ke — chart mein shamil nahi' : '';
   const penNoteEl = document.getElementById('violPenStatusNote');
   if(penNoteEl) penNoteEl.textContent = totalPenalty>0 ? Math.round(paidPenalty/totalPenalty*100)+'% recovered' : 'no penalties';
   const stColors = {Open:'#dc2626',Ongoing:'#facc15',Closed:'#16a34a'};
@@ -2003,7 +2105,7 @@ function showViolCatDetail(label){
 function showViolMonthDetail(label, idx){
   const m = (DASH_VIOL_MONTHS||[])[idx];
   if(!m) return;
-  renderViolationDetailModal(`Violations — ${m.label} ${m.key.slice(0,4)}`, (DASH_VIOL||[]).filter(v=>ymKey(v.date)===m.key));
+  renderViolationDetailModal(`Violations — ${m.label} ${m.key.slice(0,4)}`, (DASH_VIOL||[]).filter(v=>violMonthKey(v)===m.key));
 }
 
 function pct(v,total){ return total? Math.round(v/total*100) : 0; }
@@ -2517,6 +2619,14 @@ function rowsFromGviz(regKey, json){
   }
   const cfg = REGISTERS[regKey];
   const colMap = cfg.columns.map(c=>({key:c.key, type:c.type, idx:guessColumnForField(c.label, c.key, headers)}));
+  // har date column ka format (M/D/Y ya D/M/Y) pehle poori column dekh kar tay karo
+  const dateOrder = {};
+  colMap.filter(cm=>cm.type==='date' && cm.idx>=0).forEach(cm=>{
+    dateOrder[cm.key] = inferDateOrder(dataRows.map(r=>{
+      const cells = r.c || [];
+      return (cm.idx<cells.length) ? cellText(cells[cm.idx]) : '';
+    }));
+  });
   const rows = [];
   dataRows.forEach((r,i)=>{
     const cells = r.c || [];
@@ -2524,7 +2634,7 @@ function rowsFromGviz(regKey, json){
     const obj = {id:i+1};
     colMap.forEach(cm=>{
       let v = (cm.idx>=0 && cm.idx<cells.length) ? cellText(cells[cm.idx]) : '';
-      if(cm.type==='date') v = parseFlexibleDate(v);
+      if(cm.type==='date') v = parseFlexibleDate(v, dateOrder[cm.key]);
       obj[cm.key] = v==null ? '' : v;
     });
     rows.push(obj);
