@@ -445,6 +445,9 @@ td .cell-textarea{min-height:44px;resize:vertical}
       <div class="dash-filter"><label style="font-size:12px;color:var(--muted);margin-right:6px">Project</label>
         <select id="viol-project" class="filter" onchange="renderViolationsView()"><option value="">All Projects</option></select>
       </div>
+      <div class="dash-filter"><label style="font-size:12px;color:var(--muted);margin-right:6px">Contractor</label>
+        <select id="viol-company" class="filter" onchange="renderViolationsView()"><option value="">All Contractors</option></select>
+      </div>
       <div class="dash-filter"><label style="font-size:12px;color:var(--muted);margin-right:6px">Month</label>
         <select id="viol-month" class="filter" onchange="renderViolationsView()"><option value="">All Months</option></select>
       </div>
@@ -460,14 +463,14 @@ td .cell-textarea{min-height:44px;resize:vertical}
 
     <div class="vg-kpis" id="violKpis"></div>
 
-    <div class="vg-row vg-2-3">
+    <div class="vg-row vg-2">
       <div class="panel">
         <h3>🥧 Violation Categories</h3>
         <div class="donut-wrap"><svg class="donut" id="donutViolCat" viewBox="0 0 42 42"></svg><div class="legend" id="violCatLegend"></div></div>
       </div>
       <div class="panel">
         <h3>📈 Monthly Violations Trend</h3>
-        <svg class="linechart" id="violTrendChart" viewBox="0 0 560 240"></svg>
+        <svg class="vbarchart" id="violTrendChart" viewBox="0 0 560 240"></svg>
         <div class="legend-row" id="violTrendLegend"></div>
       </div>
     </div>
@@ -475,11 +478,11 @@ td .cell-textarea{min-height:44px;resize:vertical}
     <div class="vg-row vg-2">
       <div class="panel">
         <h3>🏆 Top 10 Contractors by Violations</h3>
-        <svg class="vbarchart" id="violContractorChart" viewBox="0 0 560 260"></svg>
+        <svg class="vbarchart" id="violContractorChart" viewBox="0 0 560 240"></svg>
       </div>
       <div class="panel">
         <h3>🛡️ Severity Analysis</h3>
-        <svg id="violRadar" style="width:100%;height:auto" viewBox="0 0 340 300"></svg>
+        <svg class="vbarchart" id="violRadar" viewBox="0 0 560 240"></svg>
         <div class="legend-row" id="violRadarLegend"></div>
       </div>
     </div>
@@ -509,6 +512,13 @@ td .cell-textarea{min-height:44px;resize:vertical}
         <svg class="vbarchart" id="violPenaltyChart" viewBox="0 0 560 220"></svg>
       </div>
       <div class="panel">
+        <h3>🧾 Penalty — Total vs Paid vs Pending <span class="count" id="violPenStatusNote"></span></h3>
+        <svg class="vbarchart" id="violPenStatusChart" viewBox="0 0 560 240"></svg>
+      </div>
+    </div>
+
+    <div class="vg-row vg-2">
+      <div class="panel">
         <h3>🚦 Violations by Status <span class="count" id="violStatusTotal"></span></h3>
         <div class="donut-wrap"><svg class="donut" id="donutViolStatus" viewBox="0 0 42 42"></svg><div class="legend" id="violStatusLegend"></div></div>
       </div>
@@ -523,6 +533,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
     <div class="modal-head"><h3 id="kpiModalTitle">Details</h3><span class="spacer"></span><button class="iconbtn" title="Close" onclick="closeKpiModal()">✕</button></div>
     <div class="modal-body" id="kpiModalBody" style="display:block;max-height:70vh"></div>
     <div class="modal-foot">
+      <button class="btn ghost" onclick="printKpiModal()">🖨️ Print / PDF</button>
       <button class="btn ghost" onclick="closeKpiModal()">Close</button>
     </div>
   </div>
@@ -994,12 +1005,13 @@ function niceAxisStep(rough){
 }
 function renderLineChart(id, categories, series, target){
   const el=document.getElementById(id); if(!el) return;
-  const W=560,H=220,padL=30,padR=10,padT=14,padB=26;
-  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const W=560,H=220,padR=10,padT=14,padB=26;
   const rawMax=Math.max(1,target||0,...series.flatMap(s=>s.values));
   const ticks=4;
   const step=niceAxisStep(rawMax/ticks);
   const maxVal=step*ticks;
+  const padL=Math.max(30, 8 + String(Math.round(maxVal)).length*5.6 + 6);
+  const innerW=W-padL-padR, innerH=H-padT-padB;
   const n=categories.length;
   const stepX = n>1 ? innerW/(n-1) : 0;
   const xFor=i=>padL+i*stepX;
@@ -1030,10 +1042,11 @@ function renderLineChart(id, categories, series, target){
 }
 function renderIncFAStackedChart(id, categories, recordedVals, closedVals, onClickFn){
   const el=document.getElementById(id); if(!el) return;
-  const W=560,H=220,padL=30,padR=10,padT=20,padB=28;
-  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const W=560,H=220,padR=10,padT=20,padB=28;
   const n=Math.max(1,categories.length);
   const maxVal=Math.max(1,...recordedVals);
+  const padL=Math.max(30, 8 + String(Math.round(maxVal)).length*5.6 + 6);
+  const innerW=W-padL-padR, innerH=H-padT-padB;
   const gap=40;
   const slot=innerW/n, bw=Math.max(4,Math.min(90,slot-gap));
   let grid='';
@@ -1070,12 +1083,16 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
   const W=560;
   const fullLabelsForSize = opts.fullLabels || categories;
   const maxLabelLen = rotateLabels ? Math.max(0,...fullLabelsForSize.map(c=>String(c).length)) : 0;
-  const padB = rotateLabels ? Math.max(70, Math.min(260, 20 + maxLabelLen*5.2)) + 22 : (xTitle ? 42 : 28);
-  const H = (xTitle||yTitle) ? (rotateLabels ? padB+118 : 240) : 220;
-  const padL = yTitle ? 44 : 30, padR=10, padT=20;
-  const innerW=W-padL-padR, innerH=H-padT-padB;
+  let padB = rotateLabels ? Math.max(70, Math.min(260, 20 + maxLabelLen*5.2)) + 22 : (xTitle ? 42 : 28);
+  const H = opts.height || ((xTitle||yTitle) ? (rotateLabels ? padB+118 : 240) : 220);
+  // fixed height: label area ko cap karo taake chart Dashboard walay charts jitna hi rahe
+  if(opts.height) padB = Math.min(padB, Math.max(40, H-110));
   const n=Math.max(1,categories.length);
   const maxVal=Math.max(1,...values);
+  // y-axis numbers ki width ke hisaab se left padding — warna baray numbers (e.g. 20000) cut ho jatay hain
+  const yTickChars = String(Math.round(maxVal)).length;
+  const padL = Math.max(yTitle ? 44 : 30, (yTitle ? 20 : 8) + yTickChars*5.6 + 6), padR=10, padT=20;
+  const innerW=W-padL-padR, innerH=H-padT-padB;
   const gap=8;
   const slot=innerW/n;
   let bw=Math.max(4,slot-gap);
@@ -1087,7 +1104,7 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
     const y=padT+innerH-(val/maxVal)*innerH;
     grid += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e9efe9" stroke-width="1"/><text x="${padL-6}" y="${y+3}" font-size="9" fill="#8a988c" text-anchor="end">${val}</text>`;
   }
-  const maxChars = rotateLabels ? 999 : 999;
+  const maxChars = (rotateLabels && opts.height) ? Math.max(8, Math.floor((padB-22-(xTitle?16:0))*1.35/5.2)) : 999;
   let bars='';
   categories.forEach((c,i)=>{
     const v=values[i]||0;
@@ -1221,10 +1238,11 @@ function renderImsGantt(id, rows){
 }
 function renderTargetBarChart(id, categories, values, target){
   const el=document.getElementById(id); if(!el) return;
-  const W=560,H=220,padL=30,padR=10,padT=22,padB=26;
-  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const W=560,H=220,padR=10,padT=22,padB=26;
   const n=Math.max(1,categories.length);
   const maxVal=Math.max(target,1,...values)*1.15;
+  const padL=Math.max(30, 8 + String(Math.round(maxVal)).length*5.6 + 6);
+  const innerW=W-padL-padR, innerH=H-padT-padB;
   const gap=10;
   const slot=innerW/n, bw=Math.min(70,slot-gap);
   const yFor=v=>padT+innerH-(v/maxVal)*innerH;
@@ -1251,11 +1269,12 @@ function renderTargetBarChart(id, categories, values, target){
 }
 function renderStackedBarChart(id, categories, series){
   const el=document.getElementById(id); if(!el) return;
-  const W=560,H=220,padL=30,padR=10,padT=18,padB=26;
-  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const W=560,H=220,padR=10,padT=18,padB=26;
   const n=Math.max(1,categories.length);
   const totals = categories.map((c,i)=>series.reduce((s,se)=>s+(se.values[i]||0),0));
   const maxVal=Math.max(1,...totals);
+  const padL=Math.max(30, 8 + String(Math.round(maxVal)).length*5.6 + 6);
+  const innerW=W-padL-padR, innerH=H-padT-padB;
   const slot=innerW/n, bw=Math.min(90,slot*0.5);
   let grid='';
   const ticks=4;
@@ -1293,11 +1312,12 @@ function renderStackedBarChart(id, categories, series){
 }
 function renderComboChart(id, categories, bars, lines){
   const el=document.getElementById(id); if(!el) return;
-  const W=560,H=240,padL=30,padR=10,padT=24,padB=28;
-  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const W=560,H=240,padR=10,padT=24,padB=28;
   const n=Math.max(1,categories.length);
   const allVals=[...bars.flatMap(b=>b.values), ...lines.flatMap(l=>l.values)];
   const maxVal=Math.max(1,...allVals);
+  const padL=Math.max(30, 8 + String(Math.round(maxVal)).length*5.6 + 6);
+  const innerW=W-padL-padR, innerH=H-padT-padB;
   const slot=innerW/n;
   const groupGap=10;
   const barW=Math.max(4,(slot-groupGap)/Math.max(1,bars.length));
@@ -1340,11 +1360,12 @@ function renderObsStackedChart(id, categories, recordedVals, closedVals, ongoing
   const el=document.getElementById(id); if(!el) return;
   DASH_TREND_OBS = obsAll||[];
   DASH_TREND_MONTHS = months6||[];
-  const W=560,H=240,padL=30,padR=10,padT=24,padB=28;
-  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const W=560,H=240,padR=10,padT=24,padB=28;
   const n=Math.max(1,categories.length);
   const stackTotals = recordedVals.map((v,i)=>v+(closedVals[i]||0));
   const maxVal=Math.max(1,...stackTotals,...ongoingVals,...overdueVals);
+  const padL=Math.max(30, 8 + String(Math.round(maxVal)).length*5.6 + 6);
+  const innerW=W-padL-padR, innerH=H-padT-padB;
   const slot=innerW/n;
   const groupGap=10;
   const barCount=3; // stacked(recorded+closed), ongoing, overdue
@@ -1652,6 +1673,36 @@ const VIOL_KPI_TITLES = {
   month:'Violations — Last 30 Days', repeat:'Repeat Offenders (2+ violations)',
   penalty:'Violations with a Penalty', paid:'Paid Penalties (Closed)', pending:'Pending Penalties'
 };
+/* Penalty summary — Total vs Paid vs Pending (amounts in PKR) */
+function violPenaltyStatusChart(svgId, items){
+  const el=document.getElementById(svgId); if(!el) return;
+  const W=560, H=240, padT=30, padB=52, padR=10;
+  const maxVal = Math.max(1, ...items.map(i=>i.value));
+  const padL = Math.max(56, 22 + violMoney(maxVal).length*5.6 + 6);
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  el.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const n=items.length, slot=innerW/n, bw=Math.min(90, Math.max(10, slot-60));
+  let grid='';
+  const ticks=4;
+  for(let t=0;t<=ticks;t++){
+    const val=Math.round(maxVal/ticks*t);
+    const y=padT+innerH-(val/maxVal)*innerH;
+    grid += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e9efe9" stroke-width="1"/><text x="${padL-6}" y="${y+3}" font-size="9" fill="#8a988c" text-anchor="end">${violMoney(val)}</text>`;
+  }
+  let bars='';
+  items.forEach((it,i)=>{
+    const x=padL+i*slot+(slot-bw)/2;
+    const h=(it.value/maxVal)*innerH;
+    const y=padT+innerH-h;
+    const click = it.kpi ? ` class="risk-seg" style="cursor:pointer" onclick="showViolKpi('${it.kpi}')"` : '';
+    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${it.color}"${click}><title>${escapeHtml(it.label)}: PKR ${violMoney(it.value)}${it.count!=null?' — '+it.count+' violation(s)':''}${it.kpi?' — click for details':''}</title></rect>`;
+    bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(y-8).toFixed(1)}" font-size="11" fill="#182018" text-anchor="middle" font-weight="800" style="pointer-events:none">${violMoney(it.value)}</text>`;
+    if(it.count!=null) bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(padT+innerH+28).toFixed(1)}" font-size="9" fill="#8a988c" text-anchor="middle">${it.count} case${it.count===1?'':'s'}</text>`;
+    bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(padT+innerH+15).toFixed(1)}" font-size="10.5" fill="#41544a" text-anchor="middle" font-weight="700">${escapeHtml(it.label)}</text>`;
+  });
+  bars += `<text x="14" y="${(padT+innerH/2).toFixed(1)}" font-size="10.5" fill="#41544a" text-anchor="middle" font-weight="700" transform="rotate(-90 14 ${(padT+innerH/2).toFixed(1)})">Amount (PKR)</text>`;
+  el.innerHTML = grid+bars;
+}
 function violIsClosed(s){ return String(s||'').trim().toLowerCase()==='closed'; }
 function violNum(v){ const n = Number(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; }
 function violMoney(n){ return Math.round(n).toLocaleString('en-US'); }
@@ -1665,6 +1716,13 @@ function populateViolFilters(){
     projSel.innerHTML = '<option value="">All Projects</option>' + projs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
     if(projs.includes(cur)) projSel.value = cur;
   }
+  const compSel = document.getElementById('viol-company');
+  if(compSel){
+    const cur = compSel.value;
+    const comps = [...new Set((DATA.violations||[]).map(v=>String(v.company||'').trim()).filter(Boolean))].sort();
+    compSel.innerHTML = '<option value="">All Contractors</option>' + comps.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    if(comps.includes(cur)) compSel.value = cur;
+  }
   const moSel = document.getElementById('viol-month');
   if(moSel){
     const cur = moSel.value;
@@ -1677,13 +1735,62 @@ function populateViolFilters(){
   }
 }
 function clearViolFilters(){
-  ['viol-project','viol-month','viol-from','viol-to'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['viol-project','viol-company','viol-month','viol-from','viol-to'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   renderViolationsView();
 }
 
 const VIOL_CAT_COLORS = ['#dc2626','#ea580c','#f59e0b','#0f7a4d','#2563eb','#7c3aed','#0891b2','#be185d','#65a30d','#475569','#b45309','#0ea5e9'];
 const VIOL_SEV_COLORS = {Low:'#16a34a', Medium:'#facc15', High:'#fb923c', Critical:'#dc2626'};
 
+/* Severity analysis — stacked bars: har category ka bar, andar severity levels */
+function violSeverityChart(svgId, legendId, axes, series){
+  const el=document.getElementById(svgId); if(!el) return;
+  const W=560, H=240;
+  el.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  if(!axes.length){
+    el.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle" font-size="12" fill="#8a988c">No data</text>`;
+    if(legendId) document.getElementById(legendId).innerHTML='';
+    return;
+  }
+  const totals = axes.map((c,i)=>series.reduce((s,se)=>s+(se.values[i]||0),0));
+  const maxVal = Math.max(1, ...totals);
+  const padT=22, padB=76, padR=10;
+  const padL = Math.max(44, 20 + String(Math.round(maxVal)).length*5.6 + 6);
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const n=axes.length;
+  const slot=innerW/n;
+  const bw=Math.min(52, Math.max(6, slot-14));
+  let grid='';
+  const ticks=4;
+  for(let t=0;t<=ticks;t++){
+    const val=Math.round(maxVal/ticks*t);
+    const y=padT+innerH-(val/maxVal)*innerH;
+    grid += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e9efe9" stroke-width="1"/><text x="${padL-6}" y="${y+3}" font-size="9" fill="#8a988c" text-anchor="end">${val}</text>`;
+  }
+  const maxChars = Math.max(8, Math.floor((padB-22)*1.35/5.2));
+  let bars='';
+  axes.forEach((c,i)=>{
+    const x=padL+i*slot+(slot-bw)/2;
+    let yCursor=padT+innerH;
+    series.forEach(se=>{
+      const v=se.values[i]||0;
+      if(v<=0) return;
+      const h=(v/maxVal)*innerH;
+      const y=yCursor-h;
+      bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${se.color}" stroke="#fff" stroke-width="1"><title>${escapeHtml(String(c))} · ${escapeHtml(se.label)}: ${v}</title></rect>`;
+      if(h>=13) bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(y+h/2+3.5).toFixed(1)}" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="700" style="pointer-events:none">${v}</text>`;
+      yCursor=y;
+    });
+    if(totals[i]>0) bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(yCursor-5).toFixed(1)}" font-size="10" fill="#182018" text-anchor="middle" font-weight="700" style="pointer-events:none">${totals[i]}</text>`;
+    const full=String(c);
+    const short = full.length>maxChars ? full.slice(0,maxChars-1)+'…' : full;
+    const lx=(x+bw/2).toFixed(1), ly=padT+innerH+12;
+    bars += `<text x="${lx}" y="${ly}" font-size="9" fill="#5c6b60" text-anchor="end" transform="rotate(-45 ${lx} ${ly})"><title>${escapeHtml(full)}</title>${escapeHtml(short)}</text>`;
+  });
+  bars += `<text x="14" y="${(padT+innerH/2).toFixed(1)}" font-size="10.5" fill="#41544a" text-anchor="middle" font-weight="700" transform="rotate(-90 14 ${(padT+innerH/2).toFixed(1)})">Violations</text>`;
+  el.innerHTML = grid+bars;
+  if(legendId) document.getElementById(legendId).innerHTML = series.map(sr=>`<span class="lg-item"><span class="sw" style="background:${sr.color}"></span>${escapeHtml(sr.label)}</span>`).join('');
+}
 function violRadar(svgId, legendId, axes, series){
   const el=document.getElementById(svgId); if(!el) return;
   const W=340,H=300,cx=170,cy=140,R=105;
@@ -1729,10 +1836,16 @@ function renderViolationsView(){
     if(toFilter && d>toFilter) return false;
     return true;
   };
-  const base = (DATA.violations||[]).filter(v=>!projFilter || String(v.project||'').trim()===projFilter);
+  const compFilter = (document.getElementById('viol-company')||{}).value || '';
+  const base = (DATA.violations||[]).filter(v=>
+    (!projFilter || String(v.project||'').trim()===projFilter) &&
+    (!compFilter || String(v.company||'').trim()===compFilter)
+  );
   const rows = base.filter(v=>passDate(v.date));
   const anchorKey = monthFilter || (toFilter ? toFilter.slice(0,7) : null);
-  const months6 = anchorKey ? lastMonths(6, anchorKey) : monthsFromData(rows, 6);
+  // axis April se shuru hota hai — jin mahinon ka data nahi, unka naam phir bhi
+  // x-axis par aata hai (bar zero height ka hoga)
+  const months6 = anchorKey ? lastMonths(6, anchorKey) : padMonthsFrom(monthsFromData(rows, 6), CD_AXIS_START);
   const catLabels = months6.map(m=>m.label);
   DASH_VIOL = rows;
   DASH_VIOL_MONTHS = months6;
@@ -1786,24 +1899,23 @@ function renderViolationsView(){
   renderDonut('donutViolCat','violCatLegend', cats.map((c,i)=>({label:c, val:catMap[c], color:VIOL_CAT_COLORS[i%VIOL_CAT_COLORS.length]})));
 
   // ---- Monthly trend line ----
-  renderLineChart('violTrendChart', catLabels, [
-    {label:'Violations', color:'#dc2626', values: months6.map(m=>rows.filter(v=>ymKey(v.date)===m.key).length)},
-  ]);
+  renderVBarChart('violTrendChart', catLabels, months6.map(m=>rows.filter(v=>ymKey(v.date)===m.key).length), '#dc2626',
+    '', 'Violations', null, {maxBarWidth:56, fullLabels: months6.map(m=>m.full||m.label)});
   document.getElementById('violTrendLegend').innerHTML = `<span class="lg-item"><span class="sw" style="background:#dc2626"></span>Violations</span>`;
 
   // ---- Top 10 contractors ----
   const compMap = {};
   rows.forEach(v=>{ const c=String(v.company||'').trim()||'N/A'; compMap[c]=(compMap[c]||0)+1; });
   const comps = Object.keys(compMap).sort((a,b)=>compMap[b]-compMap[a]).slice(0,10);
-  renderVBarChart('violContractorChart', comps, comps.map(c=>compMap[c]), '#f59e0b', '', 'Violations', 'showViolCompanyDetail', {rotateLabels:true, maxBarWidth:46});
+  renderVBarChart('violContractorChart', comps, comps.map(c=>compMap[c]), '#f59e0b', 'Contractor', 'Violations', 'showViolCompanyDetail', {rotateLabels:true, maxBarWidth:46, height:240});
 
-  // ---- Severity radar (risk level across top categories) ----
+  // ---- Severity by category (stacked bar) ----
   const radarAxes = cats.slice(0,6);
   const sevSeries = MASTER.riskLevels.map(lv=>({
     label: lv, color: VIOL_SEV_COLORS[lv]||'#999',
     values: radarAxes.map(c=>rows.filter(v=>violCatOf(v)===c && String(v.risk||'').trim()===lv).length)
   }));
-  violRadar('violRadar','violRadarLegend', radarAxes, sevSeries);
+  violSeverityChart('violRadar','violRadarLegend', radarAxes, sevSeries);
 
   // ---- Recent violations ----
   const recent = rows.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6);
@@ -1835,6 +1947,15 @@ function renderViolationsView(){
 
   // ---- Penalty per month + status donut ----
   renderVBarChart('violPenaltyChart', catLabels, months6.map(m=>rows.filter(v=>ymKey(v.date)===m.key).reduce((s,v)=>s+violNum(v.penalty),0)), '#7c3aed');
+
+  // ---- Penalty: Total vs Paid vs Pending ----
+  violPenaltyStatusChart('violPenStatusChart', [
+    {label:'Total Penalty', value: totalPenalty, color:'#ea580c', kpi:'penalty', count: DASH_VIOL_SETS.penalty.length},
+    {label:'Paid (Closed)', value: paidPenalty, color:'#16a34a', kpi:'paid', count: DASH_VIOL_SETS.paid.length},
+    {label:'Pending', value: pendingPenalty, color:'#f59e0b', kpi:'pending', count: DASH_VIOL_SETS.pending.length},
+  ]);
+  const penNoteEl = document.getElementById('violPenStatusNote');
+  if(penNoteEl) penNoteEl.textContent = totalPenalty>0 ? Math.round(paidPenalty/totalPenalty*100)+'% recovered' : 'no penalties';
   const stColors = {Open:'#dc2626',Ongoing:'#facc15',Closed:'#16a34a'};
   const extraSt = [...new Set(rows.map(v=>String(v.status||'').trim()).filter(Boolean))].filter(x=>!MASTER.statusList.includes(x));
   const stList = MASTER.statusList.concat(extraSt.sort());
@@ -2091,6 +2212,100 @@ function showImsActivityDetail(activityNo, idx){
 
 function closeKpiModal(){ document.getElementById('kpiModalBg').classList.remove('show'); }
 
+/* Modal ka data (jo bhi table abhi khuli hai) print / PDF ke liye bhejta hai.
+   Hidden iframe use karta hai taake popup blocker rasta na roke. */
+function buildPrintHtml(){
+  const title = (document.getElementById('kpiModalTitle')||{}).textContent || 'HSE Report';
+  const body  = (document.getElementById('kpiModalBody')||{}).innerHTML || '';
+  const stamp = new Date().toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const css = `
+    *{box-sizing:border-box}
+    body{font-family:Segoe UI,Arial,sans-serif;color:#182018;margin:18px}
+    h1{font-size:16px;margin:0 0 2px}
+    .meta{font-size:11px;color:#6b7a70;margin-bottom:12px}
+    .noprint{margin:0 0 14px}
+    .noprint button{font:inherit;font-size:12px;padding:7px 14px;border-radius:8px;border:1px solid #cfd8d2;background:#0f7a4d;color:#fff;cursor:pointer}
+    div{max-height:none !important;overflow:visible !important;border:0 !important}
+    table{width:100%;border-collapse:collapse;font-size:10px}
+    th,td{border:1px solid #cfd8d2;padding:4px 6px;text-align:left;vertical-align:top}
+    th{background:#eef3ef;font-weight:700;font-size:10px}
+    tr{page-break-inside:avoid}
+    thead{display:table-header-group}
+    .badge,.b{display:inline-block;padding:1px 5px;border-radius:8px;border:1px solid #cfd8d2;font-size:9px}
+    @media print{.noprint{display:none !important}}
+    @page{size:A4 landscape;margin:10mm}
+  `;
+  return {
+    title: title,
+    empty: !body.trim(),
+    html: `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${css}</style></head>`
+      + `<body><h1>${escapeHtml(title)}</h1><div class="meta">HSE Dashboard — printed ${escapeHtml(stamp)}</div>`
+      + `<div class="noprint"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>${body}</body></html>`
+  };
+}
+
+/* Print / PDF.
+   Google Sites (aur koi bhi embed) apne iframe ko sandbox karta hai. Agar
+   sandbox mein 'allow-modals' na ho to window.print() chup-chaap fail ho jata
+   hai, is liye teen darjay ki koshish hoti hai:
+     1) hidden iframe se seedha print (normal, non-embedded case)
+     2) naya tab kholna, wahan se user print kare (embed ke liye)
+     3) dono na chalein to report ko .html file ke tor par download karna    */
+function printKpiModal(){
+  const rep = buildPrintHtml();
+  if(rep.empty){ toast('Kuch print karne ko nahi hai'); return; }
+
+  const old = document.getElementById('printFrame'); if(old) old.remove();
+  let printed = false;
+  try{
+    const f = document.createElement('iframe');
+    f.id = 'printFrame';
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    document.body.appendChild(f);
+    const d = f.contentWindow.document;
+    d.open(); d.write(rep.html); d.close();
+    f.contentWindow.addEventListener('beforeprint', ()=>{ printed = true; });
+    f.contentWindow.addEventListener('afterprint', ()=>{ printed = true; });
+    setTimeout(()=>{
+      try{ f.contentWindow.focus(); f.contentWindow.print(); }
+      catch(e){ printed = false; }
+      // Chrome sandbox mein print() bina error ke bhi kuch nahi karta —
+      // is liye thodi der baad check kar ke fallback chala dete hain
+      setTimeout(()=>{ if(!printed) printFallbackWindow(rep); }, 700);
+    }, 250);
+  }catch(e){
+    printFallbackWindow(rep);
+  }
+}
+
+function printFallbackWindow(rep){
+  let w = null;
+  try{ w = window.open('', '_blank'); }catch(e){ w = null; }
+  if(w && w.document){
+    try{
+      w.document.open(); w.document.write(rep.html); w.document.close();
+      w.focus();
+      toast('Naye tab mein report khul gayi — wahan Print dabayein');
+      return;
+    }catch(e){}
+  }
+  printFallbackDownload(rep);
+}
+
+function printFallbackDownload(rep){
+  try{
+    const blob = new Blob([rep.html], {type:'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = rep.title.replace(/[^\w\- ]+/g,'').trim().slice(0,60).replace(/\s+/g,'_') + '.html';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    toast('Report file download ho gayi — khol kar print kar lein');
+  }catch(e){
+    toast('Print block ho gaya — dashboard ko naye tab mein khol kar print karein');
+  }
+}
+
 document.getElementById('kpiModalBg').addEventListener('click', e=>{ if(e.target.id==='kpiModalBg') closeKpiModal(); });
 
 
@@ -2162,19 +2377,56 @@ function renderStackedRiskBars(id, legendId, items){
 /* Google Sheet Sync tab password ke peechey hai. Yeh sirf casual roak-tok hai —
    file ka source koi bhi khol kar password parh sakta hai, is liye ise asli
    security na samjhein. Ek baar unlock karne ke baad tab band hone tak khula rehta hai. */
+/* Google Sites / kisi bhi sandboxed iframe ke andar localStorage aur
+   sessionStorage access karne par SecurityError aa sakta hai. In helpers ke
+   through storage optional ban jati hai — memory fallback chalta rehta hai. */
+const MEM_STORE = {};
+function safeStoreGet(area, key){
+  try{ const v = window[area].getItem(key); return v===null?undefined:v; }
+  catch(e){ return MEM_STORE[area+':'+key]; }
+}
+function safeStoreSet(area, key, val){
+  MEM_STORE[area+':'+key] = val;
+  try{ window[area].setItem(key, val); }catch(e){}
+}
+function safeStoreRemove(area, key){
+  delete MEM_STORE[area+':'+key];
+  try{ window[area].removeItem(key); }catch(e){}
+}
+
+/* sandboxed embed mein alert() block ho sakta hai — us surat mein naya tab */
+function safeAlert(msg){
+  try{ alert(msg); }
+  catch(e){
+    try{
+      const w = window.open('', '_blank');
+      w.document.open();
+      w.document.write('<pre style="font:13px/1.5 Segoe UI,Arial;white-space:pre-wrap;padding:20px">'+escapeHtml(msg)+'</pre>');
+      w.document.close();
+    }catch(e2){ toast('Ye message embed mein nahi dikh sakta — naye tab mein kholein'); }
+  }
+}
+
 const SYNC_PASSWORD = 'omer1234hamza';
-let SYNC_UNLOCKED = sessionStorage.getItem('hse_sync_unlocked') === '1';
+let SYNC_UNLOCKED = safeStoreGet('sessionStorage','hse_sync_unlocked') === '1';
 
 function unlockSync(){
   if(SYNC_UNLOCKED) return true;
-  const entered = prompt('Google Sheet Sync — password daalein:');
+  let entered;
+  try{ entered = prompt('Google Sheet Sync — password daalein:'); }
+  catch(e){ entered = undefined; }
+  // sandboxed iframe (Google Sites) mein prompt block ho sakta hai
+  if(entered === undefined){
+    toast('Is embed mein password box block hai — dashboard naye tab mein kholein');
+    return false;
+  }
   if(entered === null) return false;            // cancel
   if(entered.trim() !== SYNC_PASSWORD){
     toast('Ghalat password');
     return false;
   }
   SYNC_UNLOCKED = true;
-  sessionStorage.setItem('hse_sync_unlocked', '1');
+  safeStoreSet('sessionStorage','hse_sync_unlocked', '1');
   return true;
 }
 
@@ -2188,7 +2440,7 @@ function activateView(tab){
 const SHEET_TABS = {};
 Object.keys(REGISTERS).forEach(k=>{ SHEET_TABS[k] = REGISTERS[k].sheetTab; });
 
-let SHEET_ID = localStorage.getItem('hse_sheet_id') || '1vokvOl1ppsMmSezMmMEeNqh1WWiINy5nvEo0ywaY5ZM';
+let SHEET_ID = safeStoreGet('localStorage','hse_sheet_id') || '1vokvOl1ppsMmSezMmMEeNqh1WWiINy5nvEo0ywaY5ZM';
 let AUTO_TIMER = null;
 
 function extractSheetId(input){
@@ -2330,7 +2582,7 @@ function connectSheet(){
   const id = extractSheetId(input);
   if(!id){ toast('Google Sheet ka URL ya ID daalein'); return; }
   SHEET_ID = id;
-  localStorage.setItem('hse_sheet_id', id);
+  safeStoreSet('localStorage','hse_sheet_id', id);
   loadAllFromSheet(true);
   if(AUTO_TIMER) clearInterval(AUTO_TIMER);
   AUTO_TIMER = setInterval(()=>loadAllFromSheet(false), 5*60*1000);
@@ -2338,7 +2590,7 @@ function connectSheet(){
 
 function disconnectSheet(){
   SHEET_ID = '';
-  localStorage.removeItem('hse_sheet_id');
+  safeStoreRemove('localStorage','hse_sheet_id');
   if(AUTO_TIMER) clearInterval(AUTO_TIMER);
   Object.keys(REGISTERS).forEach(k=>{ DATA[k]=[]; });
   document.getElementById('sheetIdInput').value = '';
@@ -2353,7 +2605,7 @@ function sheetHelp(){
     const cfg = REGISTERS[k];
     return '• '+cfg.sheetTab+' — '+cfg.columns.map(c=>c.label).join(', ');
   }).join('\n\n');
-  alert('Google Sheet ko dashboard sey connect karne ka tareeqa:\n\n'
+  safeAlert('Google Sheet ko dashboard sey connect karne ka tareeqa:\n\n'
     +'1. Apni Google Sheet kholein.\n'
     +'2. Share button -> "Anyone with the link" -> Viewer set karein.\n'
     +'3. Sheet mein neeche diye gaye naamon sey (exact) tabs banayein, pehli row mein column headings likhein:\n\n'
