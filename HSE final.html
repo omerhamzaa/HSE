@@ -260,6 +260,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
     <nav class="tabs" id="tabs">
       <button data-tab="dashboard" class="active" onclick="activateView('dashboard')">📊 Dashboard</button>
       <button data-tab="violations" onclick="activateView('violations')">🚫 Violations</button>
+      <button data-tab="challan" onclick="activateView('challan')">🖨️ Violation Challan</button>
       <button data-tab="ims" onclick="activateView('ims')">🗓️ IMS Schedule</button>
       <button data-tab="sync" onclick="activateView('sync')">🔗 Google Sheet Sync</button>
     </nav>
@@ -525,6 +526,47 @@ td .cell-textarea{min-height:44px;resize:vertical}
     </div>
   </section>
 
+  <section class="view" id="view-challan">
+    <div class="section-head">
+      <div><div class="eyebrow">Compliance</div><h2>Violation Challan</h2></div>
+      <div class="spacer"></div>
+      <span class="view-note">Print a formal Safety Violation Notice for any entry</span>
+    </div>
+
+    <div class="toolbar">
+      <div class="search">🔍
+        <input id="chal-search" type="text" placeholder="Search name, company, category, violation/challan #…" oninput="renderChallanView()">
+      </div>
+      <select id="chal-project" class="filter" onchange="renderChallanView()"><option value="">All Projects</option></select>
+      <select id="chal-company" class="filter" onchange="renderChallanView()"><option value="">All Contractors</option></select>
+      <select id="chal-status" class="filter" onchange="renderChallanView()"><option value="">All Status</option></select>
+      <label style="font-size:12px;color:var(--muted)">From
+        <input type="date" id="chal-from" class="filter" onchange="renderChallanView()">
+      </label>
+      <label style="font-size:12px;color:var(--muted)">To
+        <input type="date" id="chal-to" class="filter" onchange="renderChallanView()">
+      </label>
+      <button class="btn sm ghost" onclick="clearChallanFilters()">✕ Clear filters</button>
+      <span class="spacer"></span>
+      <span class="stat-strip"><span class="s">Showing <b id="chalCount">0</b> of <b id="chalTotal">0</b></span></span>
+    </div>
+
+    <div class="tablewrap">
+      <div class="tscroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Challan #</th><th>Violation #</th><th>Date</th><th>Employee</th>
+              <th>Company</th><th>Category</th><th>Severity</th><th>Status</th>
+              <th>Penalty</th><th class="actioncol">Action</th>
+            </tr>
+          </thead>
+          <tbody id="chalTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <!-- KPI DETAIL MODAL -->
@@ -719,11 +761,15 @@ const REGISTERS = {
     label:'Violations', icon:'🚫', sheetTab:'VIOLATIONS',
     columns:[
       {key:'no',label:'Violation No.',type:'text'},
+      {key:'challanNo',label:'Challan No.',type:'text'},
       {key:'month',label:'Month',type:'text'},
       {key:'date',label:'Date',type:'date'},
       {key:'time',label:'Time',type:'text'},
       {key:'name',label:'Name',type:'text'},
       {key:'designation',label:'Designation',type:'text'},
+      {key:'mobile',label:'Mobile No',type:'text'},
+      {key:'bloodGroup',label:'Blood Group',type:'text'},
+      {key:'nextOfKin',label:'Next of Kin #',type:'text'},
       {key:'project',label:'Project',type:'select',source:'projects'},
       {key:'location',label:'Location',type:'text'},
       {key:'company',label:'Company / Contractor',type:'text'},
@@ -732,11 +778,14 @@ const REGISTERS = {
       {key:'supervisor',label:'Supervisor Available',type:'text'},
       {key:'workers',label:'Workers Involved',type:'number'},
       {key:'description',label:'Violation Description',type:'textarea'},
+      {key:'immediateAction',label:'Immediate Corrective Action',type:'textarea'},
+      {key:'dueDate',label:'Due Date',type:'date'},
       {key:'contractorComments',label:'Contractor Comments',type:'textarea'},
       {key:'penalty',label:'Penalty / Fine Amount',type:'number'},
       {key:'recoveryIpc',label:'Approved Recovery from IPC No.',type:'text'},
       {key:'status',label:'Status',type:'select',source:'statusList',badge:'st'},
       {key:'remarks',label:'Remarks',type:'textarea'},
+      {key:'photos',label:'Violation Photos (links, comma-separated)',type:'textarea'},
     ]
   },
 };
@@ -801,6 +850,11 @@ const HEADER_ALIASES = [
   ['dept','department'], ['no','number'], ['no','sno'], ['no','sr'],
   ['issue','observation'], ['topic','subject'], ['owner','responsible'],
   ['category','type'], ['remarks','comments'], ['remarks','notes'],
+  ['photos','photo'], ['photos','pic'], ['photos','pics'], ['photos','picture'],
+  ['photos','pictures'], ['photos','image'], ['photos','images'], ['photos','link'],
+  ['photos','links'], ['photos','attachment'], ['photos','attachments'],
+  ['photos','evidence'], ['photos','proof'], ['photos','media'], ['photos','snapshot'],
+  ['photos','snapshots'], ['photos','sitephoto'], ['photos','sitephotos'],
 ];
 function aliasVariants(s){
   const out = new Set([s]);
@@ -2108,6 +2162,343 @@ function showViolMonthDetail(label, idx){
   renderViolationDetailModal(`Violations — ${m.label} ${m.key.slice(0,4)}`, (DASH_VIOL||[]).filter(v=>violMonthKey(v)===m.key));
 }
 
+/* ============================= VIOLATION CHALLAN ============================= */
+let CHAL_ROWS = [];
+
+function populateChallanFilters(){
+  const projSel = document.getElementById('chal-project');
+  if(projSel){
+    const cur = projSel.value;
+    const projs = [...new Set((DATA.violations||[]).map(v=>String(v.project||'').trim()).filter(Boolean))].sort();
+    projSel.innerHTML = '<option value="">All Projects</option>' + projs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+    if(projs.includes(cur)) projSel.value = cur;
+  }
+  const compSel = document.getElementById('chal-company');
+  if(compSel){
+    const cur = compSel.value;
+    const comps = [...new Set((DATA.violations||[]).map(v=>String(v.company||'').trim()).filter(Boolean))].sort();
+    compSel.innerHTML = '<option value="">All Contractors</option>' + comps.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    if(comps.includes(cur)) compSel.value = cur;
+  }
+  const stSel = document.getElementById('chal-status');
+  if(stSel){
+    const cur = stSel.value;
+    const extraSt = [...new Set((DATA.violations||[]).map(v=>String(v.status||'').trim()).filter(Boolean))].filter(x=>!MASTER.statusList.includes(x));
+    const stList = MASTER.statusList.concat(extraSt.sort());
+    stSel.innerHTML = '<option value="">All Status</option>' + stList.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    if(stList.includes(cur)) stSel.value = cur;
+  }
+}
+
+function clearChallanFilters(){
+  ['chal-search','chal-project','chal-company','chal-status','chal-from','chal-to'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  renderChallanView();
+}
+
+/* Same naam ki kitni violations hain — repeat-offender badge/penalty note ke liye */
+function violRepeatCount(name){
+  name = String(name||'').trim().toLowerCase();
+  if(!name) return 0;
+  return (DATA.violations||[]).filter(v=>String(v.name||'').trim().toLowerCase()===name).length;
+}
+
+function renderChallanView(){
+  const tbody = document.getElementById('chalTableBody');
+  if(!tbody) return;
+  const all = DATA.violations||[];
+  const q = String((document.getElementById('chal-search')||{}).value||'').trim().toLowerCase();
+  const projF = (document.getElementById('chal-project')||{}).value || '';
+  const compF = (document.getElementById('chal-company')||{}).value || '';
+  const stF = (document.getElementById('chal-status')||{}).value || '';
+  const fromF = (document.getElementById('chal-from')||{}).value || '';
+  const toF = (document.getElementById('chal-to')||{}).value || '';
+
+  let rows = all.filter(v=>{
+    if(projF && String(v.project||'').trim()!==projF) return false;
+    if(compF && String(v.company||'').trim()!==compF) return false;
+    if(stF && String(v.status||'').trim()!==stF) return false;
+    if(fromF && (!v.date || v.date<fromF)) return false;
+    if(toF && (!v.date || v.date>toF)) return false;
+    if(q){
+      const hay = [v.no,v.challanNo,v.name,v.company,v.category,v.project,v.location,v.designation].map(x=>String(x||'').toLowerCase()).join(' | ');
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+
+  CHAL_ROWS = rows;
+  document.getElementById('chalCount').textContent = rows.length;
+  document.getElementById('chalTotal').textContent = all.length;
+
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty" style="padding:30px"><div class="e-ic">🗂️</div>No violations match this filter.</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map((v,i)=>{
+    const repeat = violRepeatCount(v.name) >= 2;
+    return `<tr>
+      <td>${escapeHtml(v.challanNo || autoChallanNo(v))}</td>
+      <td>${escapeHtml(v.no || '—')}</td>
+      <td>${escapeHtml(v.date || '—')}</td>
+      <td>${escapeHtml(v.name || '—')}${repeat ? ' <span class="badge risk-Critical" title="Repeat offender">REPEAT</span>' : ''}</td>
+      <td>${escapeHtml(v.company || '—')}</td>
+      <td>${escapeHtml(v.category || '—')}</td>
+      <td>${badgeHtml('risk', v.risk)}</td>
+      <td>${badgeHtml('st', v.status)}</td>
+      <td>PKR ${escapeHtml(violMoney(violNum(v.penalty)))}</td>
+      <td class="actioncol"><button class="btn sm" onclick="printChallan(${i})">🖨️ Print</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function autoChallanNo(v){
+  const base = String(v.no||'').replace(/[^0-9]/g,'').slice(-4).padStart(4,'0');
+  return 'SVN-' + (base==='0000' ? '0001' : base);
+}
+
+function escapeAttr(s){ return escapeHtml(s); }
+
+/* Photos column ka raw text kisi bhi format mein ho sakta hai — comma se,
+   newline se, ya space se separated links, ya links ke aage-peechay text.
+   Ye function un sab mein se sirf asli http(s) links nikal deta hai. */
+function extractPhotoUrls(raw){
+  const s = String(raw||'').trim();
+  if(!s) return [];
+  const matches = s.match(/https?:\/\/[^\s,]+/g);
+  if(matches && matches.length) return matches.map(u=>u.replace(/[)\]]+$/,''));
+  // agar koi http(s) URL na mila (shayad sirf comma-separated plain text/path hai)
+  return s.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
+}
+
+/* Google Drive ke normal "share" links (file/d/ID/view ya open?id=ID) seedhe
+   <img> tag mein nahi khulte — inhein Drive ke direct-view/thumbnail format
+   mein convert karta hai taake image challan mein dikhe. Doosre (non-Drive)
+   links ko waise ka waisa chhod deta hai. */
+function driveDirectImageUrl(url){
+  url = String(url||'').trim();
+  let m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(!m) m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(m && /drive\.google\.com/.test(url)){
+    return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1000`;
+  }
+  return url;
+}
+
+/* Challan ka poora printable HTML — reference design (logo header, penalty box,
+   photo grid, signatures) follow karta hai */
+function buildChallanHtml(v){
+  const repeatCount = violRepeatCount(v.name);
+  const isRepeat = repeatCount >= 2;
+  const challanNo = v.challanNo || autoChallanNo(v);
+  const violationNo = v.no || '—';
+  const dateStr = [v.date, v.time].filter(Boolean).join(' ') || '—';
+  const penalty = violMoney(violNum(v.penalty));
+  const rows2 = (a,b)=>`<div class="cr"><div class="cc"><div class="cl">${a[0]}</div><div class="cv">${a[1]}</div></div><div class="cc"><div class="cl">${b[0]}</div><div class="cv">${b[1]}</div></div></div>`;
+  const rowFull = (lab,val)=>`<div class="cr"><div class="cc full"><div class="cl">${lab}</div><div class="cv">${val}</div></div></div>`;
+  const dash = x => { x = (x==null?'':String(x)).trim(); return x ? escapeHtml(x) : '—'; };
+
+  let photosHtml = '';
+  const photoList = [...new Set(extractPhotoUrls(v.photos))].map(driveDirectImageUrl);
+  if(photoList.length){
+    photosHtml = `
+      <div class="chal-photos">
+        <div class="chal-photos-title">📷 On-Spot Violation Photos (${photoList.length})</div>
+        <div class="chal-photos-grid">
+          ${photoList.map(u=>`<a href="${escapeAttr(u)}" target="_blank" class="chal-photo-item"><img src="${escapeAttr(u)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="chal-photo-fail">⚠️ Photo load nahi hui — click to open</span></a>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  const css = `
+    *{box-sizing:border-box;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important}
+    @media print{
+      *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important}
+      .chal-title{background:linear-gradient(180deg,#0c1a2e,#081222) !important;color:#fff !important}
+      .chal-logo{background:#0c1a2e !important;color:#fff !important}
+      .chal-penalty{background:#fff4e8 !important;border-color:#f6d9b3 !important}
+      .chal-penalty .amt{color:#c2410c !important}
+      .chal-penalty .lab{color:#92400e !important}
+      .chal-repeat{background:#fde8e8 !important;border-color:#f3b9b9 !important;color:#9f1c1c !important}
+      .cl{background:#f4f6f9 !important}
+    }
+    body{font-family:Segoe UI,Arial,sans-serif;color:#182018;margin:0;background:#e9edea}
+    .noprint{padding:12px 18px;background:#f4f6f4;border-bottom:1px solid #dbe3db}
+    .noprint button{font:inherit;font-size:13px;padding:9px 16px;border-radius:8px;border:1px solid #0f7a4d;background:#0f7a4d;color:#fff;cursor:pointer;font-weight:600}
+    .sheet{max-width:800px;margin:18px auto;background:#fff;border:1px solid #d9e0d9;box-shadow:0 4px 18px rgba(0,0,0,.08);padding:28px 32px 34px}
+    .chal-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+    .chal-brand{display:flex;align-items:center;gap:12px}
+    .chal-logo{width:56px;height:56px;border-radius:8px;background:#0c1a2e;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:15px;line-height:1}
+    .chal-logo span{font-size:9px;font-weight:600;letter-spacing:.5px}
+    .chal-brand h1{margin:0;font-size:19px;letter-spacing:.5px;color:#0c1a2e}
+    .chal-brand .sub{font-size:10.5px;color:#5c6478;letter-spacing:1.5px;text-transform:uppercase;font-weight:700}
+    .chal-meta{text-align:right;font-size:11.5px;color:#333}
+    .chal-meta b{color:#0c1a2e}
+    .chal-qr{width:64px;height:64px;border:1px solid #cfd8d2;border-radius:4px;margin-left:auto;margin-top:6px;display:grid;place-items:center;font-size:9px;color:#8a988c;background:repeating-conic-gradient(#0c1a2e 0% 25%, #fff 0% 50%) 0 0/8px 8px}
+    .chal-title{background:linear-gradient(180deg,#0c1a2e,#081222);color:#fff;text-align:center;font-weight:800;font-size:15px;letter-spacing:.6px;padding:11px;border-radius:8px;margin:18px 0 12px}
+    .chal-repeat{background:#fde8e8;border:1px solid #f3b9b9;color:#9f1c1c;font-size:12px;font-weight:600;padding:9px 14px;border-radius:8px;margin-bottom:14px}
+    .chal-grid{border:1px solid #d7dce6;border-radius:8px;overflow:hidden;margin-bottom:16px}
+    .cr{display:flex;border-bottom:1px solid #e7eaf1}
+    .cr:last-child{border-bottom:0}
+    .cc{flex:1;display:flex;border-right:1px solid #e7eaf1;min-width:0}
+    .cc:last-child{border-right:0}
+    .cc.full{flex:1 1 100%}
+    .cl{flex:0 0 40%;background:#f4f6f9;font-size:11px;font-weight:700;color:#334059;padding:8px 10px}
+    .cv{flex:1;font-size:12.5px;color:#182018;padding:8px 10px;word-break:break-word}
+    .chal-penalty{background:#fff4e8;border:1px solid #f6d9b3;border-radius:8px;text-align:center;padding:16px;margin-bottom:16px}
+    .chal-penalty .lab{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#92400e;font-weight:700}
+    .chal-penalty .amt{font-family:Georgia,serif;font-size:30px;font-weight:800;color:#c2410c;margin:4px 0}
+    .chal-penalty .cap{font-size:11px;color:#8a6a3a}
+    .chal-photos{margin-bottom:16px}
+    .chal-photos-title{font-size:12.5px;font-weight:700;color:#182018;margin-bottom:8px}
+    .chal-photos-grid{display:flex;gap:10px;flex-wrap:wrap}
+    .chal-photos-grid img{width:130px;height:96px;object-fit:cover;border-radius:6px;border:1px solid #d7dce6}
+    .chal-photo-item{display:block;text-decoration:none}
+    .chal-photo-fail{display:none;width:130px;height:96px;border-radius:6px;border:1px dashed #d7dce6;background:#f7f8fb;color:#7a8296;font-size:9.5px;text-align:center;align-items:center;justify-content:center;padding:6px;line-height:1.3}
+    .chal-decl{font-size:10.5px;color:#5c6478;border-top:1px solid #e7eaf1;padding-top:12px;margin-bottom:34px}
+    .chal-sign{display:flex;justify-content:space-between;gap:10px;text-align:center}
+    .chal-sign div{flex:1;font-size:10.5px;color:#5c6478;font-weight:600}
+    .chal-sign .line{border-top:1px solid #a9b3c4;margin-bottom:6px;height:1px}
+    @media print{.noprint{display:none!important}body{background:#fff}.sheet{box-shadow:none;margin:0;border:0;max-width:100%}}
+    @page{size:A4;margin:10mm}
+  `;
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Challan ${escapeHtml(challanNo)}</title><style>${css}</style></head>
+  <body>
+    <div class="noprint"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>
+    <div class="sheet">
+      <div class="chal-top">
+        <div class="chal-brand">
+          <div class="chal-logo">V<span>3</span><span>THE VERTICAL</span></div>
+          <div><h1>THE VERTICAL</h1><div class="sub">V3 · Business Centre</div></div>
+        </div>
+        <div class="chal-meta">
+          <div><b>Challan #:</b> ${dash(challanNo)}</div>
+          <div><b>Violation #:</b> ${dash(violationNo)}</div>
+          <div><b>Date:</b> ${dash(dateStr)}</div>
+          <div class="chal-qr">QR</div>
+        </div>
+      </div>
+
+      <div class="chal-title">SAFETY VIOLATION NOTICE &amp; PENALTY CHALLAN</div>
+
+      ${isRepeat ? `<div class="chal-repeat">⚠ REPEAT OFFENDER: This worker has ${repeatCount} recorded violations. Repeat-offence penalty applied.</div>` : ''}
+
+      <div class="chal-grid">
+        ${rows2(['Employee Name', dash(v.name)], ['Trade / Designation', dash(v.designation)])}
+        ${rows2(['Company', dash(v.company)], ['Mobile No', dash(v.mobile)])}
+        ${rows2(['Blood Group', dash(v.bloodGroup)], ['Next of Kin #', dash(v.nextOfKin)])}
+        ${rowFull('Contractor', dash(v.company))}
+      </div>
+
+      <div class="chal-grid">
+        ${rows2(['Site / Project', dash(v.project)], ['Location', dash(v.location)])}
+        ${rows2(['Violation Category', dash(v.category)], ['Severity', dash(v.risk)])}
+        ${rows2(['Supervisor Present', dash(v.supervisor)], ['Workers Involved', dash(v.workers)])}
+        ${rowFull('Description', dash(v.description))}
+        ${rowFull('Immediate Corrective Action', dash(v.immediateAction))}
+        ${rows2(['Due Date', dash(v.dueDate)], ['Status', dash(v.status)])}
+      </div>
+
+      <div class="chal-penalty">
+        <div class="lab">Penalty Amount${isRepeat ? ' (Repeat Offence)' : ''}</div>
+        <div class="amt">PKR ${penalty}</div>
+        <div class="cap">As per HSE penalty schedule.</div>
+      </div>
+
+      ${photosHtml}
+
+      <div class="chal-decl"><b>Declaration:</b> The contractor acknowledges receipt of this notice. The approved penalty, if any, shall be deducted from the contractor's running bill in accordance with the project HSE requirements. Receipt of this notice does not necessarily imply agreement with its contents.</div>
+
+      <div class="chal-sign">
+        <div><div class="line"></div>HSE Officer</div>
+        <div><div class="line"></div>Site Engineer</div>
+        <div><div class="line"></div>Violator</div>
+        <div><div class="line"></div>Contractor Rep.</div>
+      </div>
+    </div>
+  </body></html>`;
+
+  return { title:`Challan ${challanNo}`, html };
+}
+
+/* Iframe ke saare <img> tags load (ya fail) hone ka wait karta hai, taake
+   Drive se aane wali photos print hone se pehle poori tarah load ho chuki hon.
+   Bahut dair na lage is liye ek maximum wait time (maxWait) bhi hai. */
+function waitForImagesReady(doc, maxWait){
+  return new Promise(resolve=>{
+    const imgs = Array.from(doc.images||[]);
+    if(!imgs.length) return resolve();
+    let remaining = imgs.length;
+    let done = false;
+    const finishOne = ()=>{ remaining--; if(remaining<=0 && !done){ done=true; resolve(); } };
+    imgs.forEach(img=>{
+      if(img.complete) finishOne();
+      else{ img.addEventListener('load', finishOne, {once:true}); img.addEventListener('error', finishOne, {once:true}); }
+    });
+    setTimeout(()=>{ if(!done){ done=true; resolve(); } }, maxWait);
+  });
+}
+
+/* Print — pehle hidden iframe se seedha print try karta hai, warna naya tab,
+   warna .html file download (same 3-tier fallback jo baaki app mein use hota hai) */
+function printChallan(idx){
+  const v = CHAL_ROWS[idx];
+  if(!v){ toast('Row nahi mili'); return; }
+  const rep = buildChallanHtml(v);
+
+  const old = document.getElementById('chalPrintFrame'); if(old) old.remove();
+  let printed = false;
+  try{
+    const f = document.createElement('iframe');
+    f.id = 'chalPrintFrame';
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    document.body.appendChild(f);
+    const d = f.contentWindow.document;
+    d.open(); d.write(rep.html); d.close();
+    f.contentWindow.addEventListener('beforeprint', ()=>{ printed = true; });
+    f.contentWindow.addEventListener('afterprint', ()=>{ printed = true; });
+    waitForImagesReady(d, 4000).then(()=>{
+      setTimeout(()=>{
+        try{ f.contentWindow.focus(); f.contentWindow.print(); }
+        catch(e){ printed = false; }
+        setTimeout(()=>{ if(!printed) chalPrintFallbackWindow(rep); }, 700);
+      }, 150);
+    });
+  }catch(e){
+    chalPrintFallbackWindow(rep);
+  }
+}
+
+
+function chalPrintFallbackWindow(rep){
+  let w = null;
+  try{ w = window.open('', '_blank'); }catch(e){ w = null; }
+  if(w && w.document){
+    try{
+      w.document.open(); w.document.write(rep.html); w.document.close();
+      w.focus();
+      toast('Naye tab mein challan khul gaya — wahan Print dabayein');
+      return;
+    }catch(e){}
+  }
+  chalPrintFallbackDownload(rep);
+}
+
+function chalPrintFallbackDownload(rep){
+  try{
+    const blob = new Blob([rep.html], {type:'text/html'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = rep.title.replace(/[^\w\- ]+/g,'').trim().slice(0,60).replace(/\s+/g,'_') + '.html';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    toast('Challan file download ho gayi — khol kar print kar lein');
+  }catch(e){
+    toast('Print block ho gaya — dashboard ko naye tab mein khol kar print karein');
+  }
+}
+
 function pct(v,total){ return total? Math.round(v/total*100) : 0; }
 
 /* ============================= KPI DRILL-DOWN MODAL ============================= */
@@ -2678,6 +3069,8 @@ async function loadAllFromSheet(manual){
   renderDashboard();
   populateViolFilters();
   renderViolationsView();
+  populateChallanFilters();
+  renderChallanView();
   if(anyOk){
     setSyncStatus('Synced '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
     if(manual) toast(anyFail ? 'Sync ho gaya, kuch tabs nahi milin' : 'Dashboard Google Sheet sey sync ho gaya');
@@ -2706,6 +3099,7 @@ function disconnectSheet(){
   document.getElementById('sheetIdInput').value = '';
   populateDashProjectFilter(); populateDashMonthFilter(); renderDashboard();
   populateViolFilters(); renderViolationsView();
+  populateChallanFilters(); renderChallanView();
   setSyncStatus('Not connected');
   toast('Google Sheet disconnect ho gayi');
 }
@@ -2731,6 +3125,8 @@ function init(){
   renderDashboard();
   populateViolFilters();
   renderViolationsView();
+  populateChallanFilters();
+  renderChallanView();
   if(SHEET_ID){
     document.getElementById('sheetIdInput').value = SHEET_ID;
     loadAllFromSheet(false);
