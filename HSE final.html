@@ -247,6 +247,22 @@ td .cell-textarea{min-height:44px;resize:vertical}
 </head>
 <body>
 
+<div id="loginGate" style="position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#14201a,#0c1712);">
+  <div style="width:100%;max-width:360px;padding:32px 28px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.35)">
+    <div style="text-align:center;margin-bottom:22px">
+      <div style="width:52px;height:52px;margin:0 auto 10px;display:grid;place-items:center;background:#f5a623;border-radius:12px;font-size:24px">⛑️</div>
+      <h1 style="font-family:'Barlow Semi Condensed',system-ui,sans-serif;color:#fff;font-size:20px;font-weight:800;text-transform:uppercase;margin:0">HSE Dashboard</h1>
+      <div style="font-size:11px;color:#a9c4b3;letter-spacing:1.2px;text-transform:uppercase;margin-top:4px">Login karein</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <input id="loginUsername" type="text" placeholder="Username" autocomplete="username" style="padding:11px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:14px">
+      <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')attemptLogin()" style="padding:11px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:14px">
+      <button class="btn primary" id="loginBtn" onclick="attemptLogin()" style="width:100%;padding:11px 13px;justify-content:center;display:flex">🔐 Login</button>
+      <div id="loginError" style="font-size:12.5px;color:#fca5a5;min-height:16px;text-align:center"></div>
+    </div>
+  </div>
+</div>
+
 <header class="topbar">
   <div class="hazard"></div>
   <div class="topbar-inner">
@@ -261,11 +277,13 @@ td .cell-textarea{min-height:44px;resize:vertical}
       <button data-tab="dashboard" class="active" onclick="activateView('dashboard')">📊 Dashboard</button>
       <button data-tab="violations" onclick="activateView('violations')">🚫 Violations</button>
       <button data-tab="challan" onclick="activateView('challan')">🖨️ Violation Challan</button>
+      <button data-tab="closure" onclick="activateView('closure')">✅ Observation Closure</button>
       <button data-tab="ims" onclick="activateView('ims')">🗓️ IMS Schedule</button>
       <button data-tab="sync" onclick="activateView('sync')">🔗 Google Sheet Sync</button>
     </nav>
     <span class="spacer"></span>
     <span class="savechip"><span class="savedot" id="savedot"></span><span id="saveLabel">Not connected</span></span>
+    <span class="savechip" id="loggedInChip" style="display:none;cursor:pointer" onclick="logoutUser()" title="Logout">👤 <span id="loggedInUserLabel"></span> · Logout</span>
   </div>
 </header>
 
@@ -287,6 +305,19 @@ td .cell-textarea{min-height:44px;resize:vertical}
         <button class="btn primary" onclick="connectSheet()">🔗 Connect</button>
         <button class="btn" onclick="loadAllFromSheet(true)">⟳ Refresh</button>
         <button class="btn" onclick="sheetHelp()">❓ Setup guide</button>
+      </div>
+    </div>
+
+    <div class="datafile-panel" id="closureConnectPanel" style="display:none">
+      <div class="df-left"><div class="df-icon">🔗</div>
+        <div>
+          <h3>Closure Submit Link Setup</h3>
+          <div class="df-status">Ek dafa Apps Script Web App URL connect karein — ye sirf Observation Closure tab ke liye hai, baaki dashboard par asar nahi karta.</div>
+        </div>
+      </div>
+      <div class="df-actions" style="align-items:center;flex-wrap:wrap">
+        <input id="closureScriptUrlInput" type="text" placeholder="Apps Script Web App URL paste karein" style="min-width:280px;padding:9px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);color:#fff;font-size:13px">
+        <button class="btn primary" onclick="connectClosureScript()">🔗 Connect</button>
       </div>
     </div>
   </section>
@@ -567,7 +598,61 @@ td .cell-textarea{min-height:44px;resize:vertical}
     </div>
   </section>
 
+  <section class="view" id="view-closure">
+    <div class="section-head">
+      <div><div class="eyebrow">Employee Self-Service</div><h2>Observation Closure</h2></div>
+      <div class="spacer"></div>
+      <span class="view-note">Apni observation dhoondh kar Status update karein aur evidence (pic/PDF) laga kar submit karein</span>
+    </div>
+
+    <div class="toolbar">
+      <div class="search">🔍
+        <input id="clo-search" type="text" placeholder="Issue, project, category mein search karein…" oninput="renderClosureView()">
+      </div>
+      <select id="clo-project" class="filter" onchange="renderClosureView()"><option value="">All Projects</option></select>
+      <select id="clo-owner" class="filter" onchange="renderClosureView()"><option value="">All Owners</option></select>
+      <select id="clo-status" class="filter" onchange="renderClosureView()">
+        <option value="openongoing" selected>Open / Ongoing</option>
+        <option value="">All Status</option>
+        <option value="Open">Open</option>
+        <option value="Ongoing">Ongoing</option>
+        <option value="Closed">Closed</option>
+      </select>
+      <button class="btn sm ghost" onclick="clearClosureFilters()">✕ Clear filters</button>
+      <span class="spacer"></span>
+      <span class="stat-strip"><span class="s">Showing <b id="cloCount">0</b> of <b id="cloTotal">0</b></span></span>
+    </div>
+
+    <div class="tablewrap">
+      <div class="tscroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th><th>Project</th><th>Category</th><th>Issue</th>
+              <th>Risk</th><th>Owner</th><th>Target</th><th>Status</th>
+              <th>Evidence</th><th class="actioncol">Action</th>
+            </tr>
+          </thead>
+          <tbody id="cloTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
 </main>
+
+<!-- OBSERVATION CLOSURE MODAL -->
+<div class="modal-bg" id="closureModalBg">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head"><h3>Close / Update Observation</h3><span class="spacer"></span><button class="iconbtn" title="Close" onclick="closeClosureModal()">✕</button></div>
+    <div class="modal-body" id="closureModalBody" style="display:block;max-height:70vh"></div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeClosureModal()">Cancel</button>
+      <button class="btn primary" id="closureSubmitBtn" onclick="submitClosureUpdate()">✅ Submit</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- KPI DETAIL MODAL -->
 <div class="modal-bg" id="kpiModalBg">
@@ -786,6 +871,26 @@ const REGISTERS = {
       {key:'status',label:'Status',type:'select',source:'statusList',badge:'st'},
       {key:'remarks',label:'Remarks',type:'textarea'},
       {key:'photos',label:'Violation Photos (links, comma-separated)',type:'textarea'},
+    ]
+  },
+  closure:{
+    label:'Observation Closure', icon:'✅', sheetTab:'OBSERVATIONS (CLOSURE)',
+    columns:[
+      {key:'date',label:'Date',type:'date'},
+      {key:'project',label:'Project',type:'select',source:'projects'},
+      {key:'location',label:'Location',type:'text'},
+      {key:'category',label:'Observation Category',type:'select',source:'obsCategories'},
+      {key:'issue',label:'Observation / Issue',type:'textarea'},
+      {key:'risk',label:'Risk Level',type:'select',source:'riskLevels',badge:'risk'},
+      {key:'actionReq',label:'Action Required',type:'select',source:'actionTypes'},
+      {key:'owner',label:'Action Owner',type:'select',source:'owners'},
+      {key:'dept',label:'Responsible Department',type:'select',source:'departments'},
+      {key:'target',label:'Target Date',type:'date'},
+      {key:'status',label:'Status',type:'select',source:'statusList',badge:'st'},
+      {key:'remarks',label:'Remarks',type:'textarea'},
+      {key:'closingDate',label:'Closing Date',type:'date'},
+      {key:'verified',label:'HSE Verified',type:'select',source:'verifiedOptions',badge:'ver'},
+      {key:'evidence',label:'Evidence Close',type:'textarea'},
     ]
   },
 };
@@ -2252,6 +2357,225 @@ function renderChallanView(){
   }).join('');
 }
 
+/* ============================= OBSERVATION CLOSURE (employee self-service) ============================= */
+/* Ye sirf isi tab ke liye hai — baaki dashboard ka data/logic bilkul nahi chhera gaya.
+   Employee ko sirf 2 cheezein change karne ka right hai: Status aur Evidence (pic/PDF).
+   File Google Drive mein jaati hai aur link seedha "OBSERVATIONS (CLOSURE)" sheet tab
+   mein wapis likha jata hai — is ke liye ek chhota Google Apps Script Web App chahiye
+   hota hai (dashboard khud sheet mein likh nahi sakta, sirf parh sakta hai). */
+let CLOSURE_ROWS = [];
+let CLOSURE_ACTIVE_ROWNUM = null;
+const CLOSURE_SCRIPT_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycbwIlLEqPjlMq_aOr0bZkFuDqpw5YFmmKXCrpGSPEKQRZoPDDKDpsSDf-SDEi5gL6FBoLQ/exec';
+let CLOSURE_SCRIPT_URL = safeStoreGet('localStorage','hse_closure_script_url') || CLOSURE_SCRIPT_URL_DEFAULT;
+
+function connectClosureScript(){
+  const val = String((document.getElementById('closureScriptUrlInput')||{}).value||'').trim();
+  if(!val){ toast('Apps Script Web App URL daalein'); return; }
+  CLOSURE_SCRIPT_URL = val;
+  safeStoreSet('localStorage','hse_closure_script_url', val);
+  toast('Closure submit link connect ho gaya');
+  updateClosureConnectPanel();
+}
+function updateClosureConnectPanel(){
+  const panel = document.getElementById('closureConnectPanel');
+  const input = document.getElementById('closureScriptUrlInput');
+  if(!panel) return;
+  if(CLOSURE_SCRIPT_URL){
+    panel.style.display = 'none';
+  } else {
+    panel.style.display = 'flex';
+  }
+  if(input && CLOSURE_SCRIPT_URL) input.value = CLOSURE_SCRIPT_URL;
+}
+
+function populateClosureFilters(){
+  const rows = DATA.closure||[];
+  const projSel = document.getElementById('clo-project');
+  if(projSel){
+    const cur = projSel.value;
+    const projs = [...new Set(rows.map(r=>String(r.project||'').trim()).filter(Boolean))].sort();
+    projSel.innerHTML = '<option value="">All Projects</option>' + projs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+    if(projs.includes(cur)) projSel.value = cur;
+  }
+  const ownSel = document.getElementById('clo-owner');
+  if(ownSel){
+    const cur = ownSel.value;
+    const owners = [...new Set(rows.map(r=>String(r.owner||'').trim()).filter(Boolean))].sort();
+    ownSel.innerHTML = '<option value="">All Owners</option>' + owners.map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
+    if(owners.includes(cur)) ownSel.value = cur;
+  }
+}
+function clearClosureFilters(){
+  const s = document.getElementById('clo-search'); if(s) s.value='';
+  const p = document.getElementById('clo-project'); if(p) p.value='';
+  const o = document.getElementById('clo-owner'); if(o) o.value='';
+  const st = document.getElementById('clo-status'); if(st) st.value='openongoing';
+  renderClosureView();
+}
+
+function renderClosureView(){
+  const tbody = document.getElementById('cloTableBody');
+  if(!tbody) return;
+  updateClosureConnectPanel();
+  const all = DATA.closure||[];
+  const q = String((document.getElementById('clo-search')||{}).value||'').trim().toLowerCase();
+  const projF = (document.getElementById('clo-project')||{}).value || '';
+  const ownF = (document.getElementById('clo-owner')||{}).value || '';
+  const stF = (document.getElementById('clo-status')||{}).value || '';
+
+  let rows = all.filter(r=>{
+    if(projF && String(r.project||'').trim()!==projF) return false;
+    if(ownF && String(r.owner||'').trim()!==ownF) return false;
+    if(stF==='openongoing'){ if(String(r.status||'').trim()==='Closed') return false; }
+    else if(stF){ if(String(r.status||'').trim()!==stF) return false; }
+    if(q){
+      const hay = [r.issue,r.project,r.category,r.owner,r.location].map(x=>String(x||'').toLowerCase()).join(' | ');
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b)=>(a.target||'').localeCompare(b.target||''));
+
+  CLOSURE_ROWS = rows;
+  document.getElementById('cloCount').textContent = rows.length;
+  document.getElementById('cloTotal').textContent = all.length;
+
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty" style="padding:30px"><div class="e-ic">✅</div>Koi observation is filter mein nahi mili.</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r=>{
+    const hasEvidence = String(r.evidence||'').trim().length>0;
+    return `<tr>
+      <td>${escapeHtml(r.date || '—')}</td>
+      <td>${escapeHtml(r.project || '—')}</td>
+      <td>${escapeHtml(r.category || '—')}</td>
+      <td style="max-width:280px">${escapeHtml((r.issue||'').slice(0,140))}${(r.issue||'').length>140?'…':''}</td>
+      <td>${badgeHtml('risk', r.risk)}</td>
+      <td>${escapeHtml(r.owner || '—')}</td>
+      <td>${escapeHtml(r.target || '—')}</td>
+      <td>${badgeHtml('st', r.status)}</td>
+      <td>${hasEvidence ? '<span class="badge ver-Verified">Attached</span>' : '<span class="badge neutral">—</span>'}</td>
+      <td class="actioncol"><button class="btn sm primary" onclick="openClosureModal(${r.rowNum})">Update</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function openClosureModal(rowNum){
+  if(!CLOSURE_SCRIPT_URL){ updateClosureConnectPanel(); toast('Pehle Google Sheet Sync tab mein Closure Submit Link connect karein'); return; }
+  const r = (DATA.closure||[]).find(x=>x.rowNum===rowNum);
+  if(!r){ toast('Row nahi mili'); return; }
+  CLOSURE_ACTIVE_ROWNUM = rowNum;
+  const body = document.getElementById('closureModalBody');
+  body.innerHTML = `
+    <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;line-height:1.6">
+      <div><b>Project:</b> ${escapeHtml(r.project||'—')} &nbsp; · &nbsp; <b>Category:</b> ${escapeHtml(r.category||'—')}</div>
+      <div style="margin-top:4px"><b>Issue:</b> ${escapeHtml(r.issue||'—')}</div>
+      <div style="margin-top:4px"><b>Owner:</b> ${escapeHtml(r.owner||'—')} &nbsp; · &nbsp; <b>Target Date:</b> ${escapeHtml(r.target||'—')}</div>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Status</label>
+      <select id="clo-newstatus" onchange="onClosureStatusChange()">
+        ${MASTER.statusList.map(s=>`<option value="${escapeHtml(s)}" ${s===r.status?'selected':''}>${escapeHtml(s)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Closing Date</label>
+      <input type="date" id="clo-closingdate" value="${escapeAttr(r.closingDate||'')}">
+      <div style="font-size:11px;color:var(--faint);margin-top:5px">Status "Closed" karte waqt ye date bharein — Google Sheet ke "Closing Date" (column M) mein save hogi.</div>
+    </div>
+    <div class="field">
+      <label>Evidence (Photo / PDF)</label>
+      <input type="file" id="clo-evidence-file" accept="image/*,application/pdf">
+      <div style="font-size:11px;color:var(--faint);margin-top:5px">JPG, PNG ya PDF — Drive mein upload ho kar link sheet mein khud save ho jayega.</div>
+    </div>
+    <div id="clo-submit-status" style="font-size:12px;color:var(--faint);margin-top:10px"></div>
+  `;
+  document.getElementById('closureModalBg').classList.add('show');
+  onClosureStatusChange();
+}
+function onClosureStatusChange(){
+  const statusEl = document.getElementById('clo-newstatus');
+  const dateEl = document.getElementById('clo-closingdate');
+  if(!statusEl || !dateEl) return;
+  if(statusEl.value==='Closed' && !dateEl.value){
+    const t = new Date();
+    dateEl.value = t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  }
+}
+function closeClosureModal(){
+  document.getElementById('closureModalBg').classList.remove('show');
+  CLOSURE_ACTIVE_ROWNUM = null;
+}
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function submitClosureUpdate(){
+  if(!CLOSURE_ACTIVE_ROWNUM){ toast('Row nahi mili'); return; }
+  if(!CLOSURE_SCRIPT_URL){ toast('Closure Submit Link connect nahi hai'); return; }
+  const statusEl = document.getElementById('clo-newstatus');
+  const dateEl = document.getElementById('clo-closingdate');
+  const fileEl = document.getElementById('clo-evidence-file');
+  const statusMsgEl = document.getElementById('clo-submit-status');
+  const newStatus = statusEl ? statusEl.value : '';
+  let newClosingDate = dateEl ? dateEl.value : '';
+  if(newStatus==='Closed' && !newClosingDate){
+    const t = new Date();
+    newClosingDate = t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  }
+  const file = (fileEl && fileEl.files && fileEl.files[0]) ? fileEl.files[0] : null;
+  const btn = document.getElementById('closureSubmitBtn');
+
+  const payload = { rowNum: CLOSURE_ACTIVE_ROWNUM, status: newStatus, closingDate: newClosingDate };
+  try{
+    if(file){
+      if(file.size > 8*1024*1024){ toast('File 8MB se zyada hai — chhoti file try karein'); return; }
+      if(statusMsgEl) statusMsgEl.textContent = 'File upload ho rahi hai…';
+      payload.fileBase64 = await fileToBase64(file);
+      payload.fileName = file.name;
+      payload.mimeType = file.type || 'application/octet-stream';
+    }
+  }catch(e){
+    toast('File read nahi ho saki'); return;
+  }
+
+  if(btn){ btn.disabled = true; btn.textContent = 'Submitting…'; }
+  if(statusMsgEl) statusMsgEl.textContent = 'Sheet update ho rahi hai…';
+  try{
+    const res = await fetch(CLOSURE_SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight on Apps Script
+      body: JSON.stringify(payload)
+    });
+    const out = await res.json().catch(()=>({ok:false, error:'Bad response'}));
+    if(!out || out.ok!==true) throw new Error((out&&out.error)||'Unknown error');
+    // local copy turant update kar do taake refresh se pehle bhi table sahi dikhe
+    const r = (DATA.closure||[]).find(x=>x.rowNum===CLOSURE_ACTIVE_ROWNUM);
+    if(r){
+      r.status = newStatus;
+      if(out.evidenceUrl) r.evidence = out.evidenceUrl;
+      if(newClosingDate) r.closingDate = newClosingDate;
+    }
+    toast('Observation update ho gayi ✅');
+    closeClosureModal();
+    renderClosureView();
+  }catch(e){
+    console.warn('Closure submit failed', e);
+    if(statusMsgEl) statusMsgEl.textContent = '';
+    toast('Submit nahi ho saka — Apps Script URL/deployment check karein');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = '✅ Submit'; }
+  }
+}
+document.getElementById('closureModalBg').addEventListener('click', e=>{ if(e.target.id==='closureModalBg') closeClosureModal(); });
+
 function autoChallanNo(v){
   const base = String(v.no||'').replace(/[^0-9]/g,'').slice(-4).padStart(4,'0');
   return 'SVN-' + (base==='0000' ? '0001' : base);
@@ -2411,10 +2735,10 @@ function buildChallanHtml(v){
       <div class="chal-decl"><b>Declaration:</b> The contractor acknowledges receipt of this notice. The approved penalty, if any, shall be deducted from the contractor's running bill in accordance with the project HSE requirements. Receipt of this notice does not necessarily imply agreement with its contents.</div>
 
       <div class="chal-sign">
-        <div><div class="line"></div>HSE Officer</div>
-        <div><div class="line"></div>Site Engineer</div>
-        <div><div class="line"></div>Violator</div>
-        <div><div class="line"></div>Contractor Rep.</div>
+        <div><div class="line"></div>Observer</div>
+        <div><div class="line"></div>HSE</div>
+        <div><div class="line"></div>Project Manager</div>
+        <div><div class="line"></div>Contactor Rep</div>
       </div>
     </div>
   </body></html>`;
@@ -2929,6 +3253,86 @@ function activateView(tab){
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
 }
 
+/* ============================= LOGIN (Users sheet tab) ============================= */
+/* Note: ye dashboard ek static HTML file hai, koi server backend nahi hai — Users tab
+   bhi usi public Google Sheet sey usi tareeqe (gviz JSONP) se parhi jaati hai jaise baaki
+   data. Iska matlab ye login sirf casual access-control hai (jaise Sync tab wala password),
+   asal security nahi — jo bhi is file ka source ya sheet direct khol le wo bypass kar sakta hai. */
+const USERS_SHEET_TAB = 'Users';
+let LOGGED_IN_USER = safeStoreGet('sessionStorage','hse_logged_in_user') || '';
+
+function showLoginGate(){
+  const gate = document.getElementById('loginGate');
+  if(gate) gate.style.display = 'flex';
+}
+function hideLoginGate(){
+  const gate = document.getElementById('loginGate');
+  if(gate) gate.style.display = 'none';
+}
+function setLoginError(msg){
+  const el = document.getElementById('loginError');
+  if(el) el.textContent = msg || '';
+}
+function markLoggedIn(username){
+  LOGGED_IN_USER = username;
+  safeStoreSet('sessionStorage','hse_logged_in_user', username);
+  const chip = document.getElementById('loggedInChip');
+  const lab = document.getElementById('loggedInUserLabel');
+  if(lab) lab.textContent = username;
+  if(chip) chip.style.display = 'flex';
+  hideLoginGate();
+}
+function logoutUser(){
+  LOGGED_IN_USER = '';
+  safeStoreRemove('sessionStorage','hse_logged_in_user');
+  location.reload();
+}
+
+async function attemptLogin(){
+  const userEl = document.getElementById('loginUsername');
+  const passEl = document.getElementById('loginPassword');
+  const btn = document.getElementById('loginBtn');
+  const u = String((userEl||{}).value||'').trim();
+  const p = String((passEl||{}).value||'').trim();
+  setLoginError('');
+  if(!u || !p){ setLoginError('Username aur password dono daalein'); return; }
+  if(!SHEET_ID){ setLoginError('Google Sheet connect nahi hai'); return; }
+  if(btn){ btn.disabled = true; btn.textContent = 'Checking…'; }
+  try{
+    const json = await fetchSheetTab(SHEET_ID, USERS_SHEET_TAB);
+    const cols = json.table.cols || [];
+    const dataRows = json.table.rows || [];
+    let headers = cols.map(c=>c.label || '');
+    if(headers.every(h=>!h) && dataRows.length){
+      headers = (dataRows[0].c||[]).map(c=>cellText(c));
+      dataRows.shift();
+    }
+    const uIdx = guessColumnForField('Username', 'username', headers);
+    const pIdx = guessColumnForField('Password', 'password', headers);
+    if(uIdx < 0 || pIdx < 0){
+      setLoginError('Users tab mein Username/Password column nahi milla');
+      return;
+    }
+    const match = dataRows.some(r=>{
+      const cells = r.c || [];
+      const ru = (uIdx<cells.length) ? cellText(cells[uIdx]).trim() : '';
+      const rp = (pIdx<cells.length) ? cellText(cells[pIdx]).trim() : '';
+      return ru.toLowerCase() === u.toLowerCase() && rp === p;
+    });
+    if(match){
+      markLoggedIn(u);
+      init();
+    } else {
+      setLoginError('Ghalat username ya password');
+    }
+  }catch(e){
+    console.warn('Login check failed', e);
+    setLoginError('Users sheet parh nahi saka — sheet sharing/tab name check karein');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = '🔐 Login'; }
+  }
+}
+
 /* ============================= GOOGLE SHEET SYNC ============================= */
 const SHEET_TABS = {};
 Object.keys(REGISTERS).forEach(k=>{ SHEET_TABS[k] = REGISTERS[k].sheetTab; });
@@ -3022,7 +3426,7 @@ function rowsFromGviz(regKey, json){
   dataRows.forEach((r,i)=>{
     const cells = r.c || [];
     if(cells.every(c=>!c || c.v==null || c.v==='')) return;
-    const obj = {id:i+1};
+    const obj = {id:i+1, rowNum:i+2};
     colMap.forEach(cm=>{
       let v = (cm.idx>=0 && cm.idx<cells.length) ? cellText(cells[cm.idx]) : '';
       if(cm.type==='date') v = parseFlexibleDate(v, dateOrder[cm.key]);
@@ -3071,6 +3475,8 @@ async function loadAllFromSheet(manual){
   renderViolationsView();
   populateChallanFilters();
   renderChallanView();
+  populateClosureFilters();
+  renderClosureView();
   if(anyOk){
     setSyncStatus('Synced '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
     if(manual) toast(anyFail ? 'Sync ho gaya, kuch tabs nahi milin' : 'Dashboard Google Sheet sey sync ho gaya');
@@ -3100,6 +3506,7 @@ function disconnectSheet(){
   populateDashProjectFilter(); populateDashMonthFilter(); renderDashboard();
   populateViolFilters(); renderViolationsView();
   populateChallanFilters(); renderChallanView();
+  populateClosureFilters(); renderClosureView();
   setSyncStatus('Not connected');
   toast('Google Sheet disconnect ho gayi');
 }
@@ -3108,7 +3515,7 @@ function sheetHelp(){
   const lines = Object.keys(REGISTERS).map(k=>{
     const cfg = REGISTERS[k];
     return '• '+cfg.sheetTab+' — '+cfg.columns.map(c=>c.label).join(', ');
-  }).join('\n\n');
+  }).join('\n\n') + '\n\n• '+USERS_SHEET_TAB+' (login) — Username, Password';
   safeAlert('Google Sheet ko dashboard sey connect karne ka tareeqa:\n\n'
     +'1. Apni Google Sheet kholein.\n'
     +'2. Share button -> "Anyone with the link" -> Viewer set karein.\n'
@@ -3119,6 +3526,15 @@ function sheetHelp(){
 }
 
 /* ============================= INIT ============================= */
+function initApp(){
+  if(LOGGED_IN_USER){
+    markLoggedIn(LOGGED_IN_USER);
+    init();
+  } else {
+    showLoginGate();
+  }
+}
+
 function init(){
   populateDashProjectFilter();
   populateDashMonthFilter();
@@ -3127,6 +3543,9 @@ function init(){
   renderViolationsView();
   populateChallanFilters();
   renderChallanView();
+  populateClosureFilters();
+  renderClosureView();
+  updateClosureConnectPanel();
   if(SHEET_ID){
     document.getElementById('sheetIdInput').value = SHEET_ID;
     loadAllFromSheet(false);
@@ -3135,7 +3554,7 @@ function init(){
     setSyncStatus('Not connected');
   }
 }
-init();
+initApp();
 
 </script>
 </body>
