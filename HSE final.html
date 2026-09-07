@@ -300,11 +300,11 @@ td .cell-textarea{min-height:44px;resize:vertical}
       <div class="df-left"><div class="df-icon">📊</div>
         <div>
           <h3>Google Sheet Connection</h3>
-          <div class="df-status">Dashboard ka saara data seedha aapki Google Sheet sey aata hai — koi manual entry nahi.</div>
+          <div class="df-status">All dashboard data comes straight from your Google Sheet — no manual entry.</div>
         </div>
       </div>
       <div class="df-actions" style="align-items:center;flex-wrap:wrap">
-        <input id="sheetIdInput" type="text" placeholder="Google Sheet URL ya ID paste karein" style="min-width:280px;padding:9px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);color:#fff;font-size:13px">
+        <input id="sheetIdInput" type="text" placeholder="Paste Google Sheet URL or ID" style="min-width:280px;padding:9px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);color:#fff;font-size:13px">
         <button class="btn primary" onclick="connectSheet()">🔗 Connect</button>
         <button class="btn" onclick="loadAllFromSheet(true)">⟳ Refresh</button>
         <button class="btn" onclick="sheetHelp()">❓ Setup guide</button>
@@ -315,11 +315,11 @@ td .cell-textarea{min-height:44px;resize:vertical}
       <div class="df-left"><div class="df-icon">🔗</div>
         <div>
           <h3>Closure Submit Link Setup</h3>
-          <div class="df-status">Ek dafa Apps Script Web App URL connect karein — ye sirf Observation Closure tab ke liye hai, baaki dashboard par asar nahi karta.</div>
+          <div class="df-status">Connect the Apps Script Web App URL once — this is only for the Observation Closure tab and does not affect the rest of the dashboard.</div>
         </div>
       </div>
       <div class="df-actions" style="align-items:center;flex-wrap:wrap">
-        <input id="closureScriptUrlInput" type="text" placeholder="Apps Script Web App URL paste karein" style="min-width:280px;padding:9px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);color:#fff;font-size:13px">
+        <input id="closureScriptUrlInput" type="text" placeholder="Paste Apps Script Web App URL" style="min-width:280px;padding:9px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);color:#fff;font-size:13px">
         <button class="btn primary" onclick="connectClosureScript()">🔗 Connect</button>
       </div>
     </div>
@@ -429,7 +429,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
         <h3>🔎 Audits / Inspections — Month-wise by Project</h3>
         <svg class="vbarchart" id="auditTrendChart" viewBox="0 0 560 220"></svg>
         <div class="legend-row" id="auditTrendLegend"></div>
-        <div style="font-size:11px;color:#8a988c;margin-top:4px">Har bar segment ek Project hai; segment par hover karke Department breakdown dekhein.</div>
+        <div style="font-size:11px;color:#8a988c;margin-top:4px">Each bar segment is a Project; hover over a segment to see the Department breakdown.</div>
       </div>
     </div>
 
@@ -605,12 +605,12 @@ td .cell-textarea{min-height:44px;resize:vertical}
     <div class="section-head">
       <div><div class="eyebrow">Employee Self-Service</div><h2>Observation Closure</h2></div>
       <div class="spacer"></div>
-      <span class="view-note">Apni observation dhoondh kar Status update karein aur evidence (pic/PDF) laga kar submit karein</span>
+      <span class="view-note">Find your observation, update the Status, attach evidence (pic/PDF) and submit</span>
     </div>
 
     <div class="toolbar">
       <div class="search">🔍
-        <input id="clo-search" type="text" placeholder="Issue, project, category mein search karein…" oninput="renderClosureView()">
+        <input id="clo-search" type="text" placeholder="Search issue, project or category…" oninput="renderClosureView()">
       </div>
       <select id="clo-project" class="filter" onchange="renderClosureView()"><option value="">All Projects</option></select>
       <select id="clo-owner" class="filter" onchange="renderClosureView()"><option value="">All Owners</option></select>
@@ -1004,7 +1004,7 @@ function parseFlexibleDate(raw, order){
     const mo = months[m[2].slice(0,3).toLowerCase()];
     if(mo){ let yr = m[3].length===2 ? (2000+Number(m[3])) : Number(m[3]); return `${yr}-${String(mo).padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
   }
-  // 8/17/2026 (M/D/Y) ya 17/8/2026 (D/M/Y) — dono chaltay hain
+  // 8/17/2026 (M/D/Y) or 17/8/2026 (D/M/Y) — both are handled
   m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
   if(m){
     const a = Number(m[1]), b = Number(m[2]);
@@ -1021,9 +1021,9 @@ function parseFlexibleDate(raw, order){
   return s; // unrecognized — leave as-is
 }
 
-/* Ek date column ko dekh kar bata deta hai ke wo M/D/Y hai ya D/M/Y.
-   Agar kisi bhi cell ka doosra hissa 12 se bara hai to column M/D/Y hai
-   (8/17/2026), aur agar pehla hissa 12 se bara hai to D/M/Y (17/8/2026). */
+/* Looks at a date column and works out whether it is M/D/Y or D/M/Y.
+   If the second part of any cell is greater than 12 the column is M/D/Y
+   (8/17/2026); if the first part is greater than 12 it is D/M/Y (17/8/2026). */
 function inferDateOrder(values){
   let mdy=0, dmy=0;
   (values||[]).forEach(v=>{
@@ -1035,7 +1035,7 @@ function inferDateOrder(values){
   });
   if(mdy && !dmy) return 'mdy';
   if(dmy && !mdy) return 'dmy';
-  return mdy>dmy ? 'mdy' : 'dmy';   // barabari ya koi saboot nahi -> D/M/Y
+  return mdy>dmy ? 'mdy' : 'dmy';   // tie or no evidence -> D/M/Y
 }
 
 function populateDashProjectFilter(){
@@ -1143,16 +1143,16 @@ function monthsFromKeys(keys, fallbackN){
   return out;
 }
 
-/* Month axis ko peeche se pad karta hai — jo mahine data mein nahi hain woh
-   0 ke saath dikhtay hain. Closed-per-month chart April se start hota hai. */
+/* Pads the month axis backwards — months with no data still show, with a
+   value of 0. The closed-per-month chart starts from April. */
 const CD_AXIS_START = '2026-04';
-const FY_START_MONTH = 4;   // axis hamesha April se shuru hota hai
+const FY_START_MONTH = 4;   // the axis always starts from April
 const MONTH_ABBR = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
 
-/* Kisi violation row ka month key (YYYY-MM).
-   Pehle Date column dekhta hai; agar wo khali ya na-samajh format mein ho to
-   sheet ke "Month" column se kaam chalata hai ("Aug", "August 2026", "8/2026",
-   "Aug-26" sab chal jate hain). Warna null. */
+/* Month key (YYYY-MM) for a violation row.
+   Checks the Date column first; if that is empty or in an unreadable format it
+   falls back to the sheet's "Month" column ("Aug", "August 2026", "8/2026" and
+   "Aug-26" all work). Otherwise null. */
 function violMonthKey(v){
   if(!v) return null;
   const k = ymKey(v.date);
@@ -1177,8 +1177,8 @@ function violMonthKey(v){
   return null;
 }
 
-/* Do month keys (YYYY-MM) ke darmiyan ka poora axis banata hai — jin mahinon
-   ka data nahi hota woh bhi naam ke saath aatay hain (bar sirf 0 height ka). */
+/* Builds the full axis between two month keys (YYYY-MM) — months with no data
+   still appear with their label (their bar is just 0 height). */
 function monthsBetween(startKey, endKey, maxSpan){
   maxSpan = maxSpan || 18;
   const label = k => {
@@ -1190,7 +1190,7 @@ function monthsBetween(startKey, endKey, maxSpan){
   const [y2,m2] = endKey.split('-').map(Number);
   let span = (y2-y1)*12 + (m2-m1) + 1;
   if(span < 1) return [label(endKey)];
-  while(span > maxSpan){ m1++; if(m1>12){ m1=1; y1++; } span--; }   // zyada lamba ho to aage se kaato
+  while(span > maxSpan){ m1++; if(m1>12){ m1=1; y1++; } span--; }   // if the span is too long, trim it from the front
   const out=[]; let y=y1, m=m1;
   while(y<y2 || (y===y2 && m<=m2)){
     out.push(label(y+'-'+String(m).padStart(2,'0')));
@@ -1199,9 +1199,9 @@ function monthsBetween(startKey, endKey, maxSpan){
   return out;
 }
 
-/* Violations ka month axis: April se le kar aakhri data wale mahine (ya
-   maujooda mahine, jo baad mein ho) tak — chahe beech ke mahinon mein
-   entry ho ya na ho. */
+/* Month axis for violations: from April up to the last month with data (or the
+   current month, whichever is later) — whether or not the months in between
+   have any entries. */
 function violMonthAxis(rows){
   const now = new Date();
   const nowKey = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
@@ -1210,7 +1210,7 @@ function violMonthAxis(rows){
   const lastData  = keys.length ? keys[keys.length-1] : null;
   const endKey = (lastData && lastData > nowKey) ? lastData : nowKey;
   const [ey, em] = endKey.split('-').map(Number);
-  // April us saal ki, magar agar abhi April se pehle hain to pichlay saal ki April
+  // April of this year, but if we are currently before April, April of last year
   let startKey = (em >= FY_START_MONTH ? ey : ey-1) + '-' + String(FY_START_MONTH).padStart(2,'0');
   if(firstData && firstData < startKey) startKey = firstData;   // purana data chhupao mat
   return monthsBetween(startKey, endKey, 18);
@@ -1227,7 +1227,7 @@ function padMonthsFrom(months, startKey){
     };
   };
   const first = (months && months.length) ? months[0].key : startKey;
-  if(first <= startKey) return months;                       // pehle se hi April ya us se pehle
+  if(first <= startKey) return months;                       // already April or earlier
   const [y1,m1] = startKey.split('-').map(Number);
   const [y2,m2] = first.split('-').map(Number);
   const gap = (y2-y1)*12 + (m2-m1);
@@ -1350,7 +1350,7 @@ function renderVBarChart(id, categories, values, color, xTitle, yTitle, onClickF
   if(opts.height) padB = Math.min(padB, Math.max(40, H-110));
   const n=Math.max(1,categories.length);
   const maxVal=Math.max(1,...values);
-  // y-axis numbers ki width ke hisaab se left padding — warna baray numbers (e.g. 20000) cut ho jatay hain
+  // left padding based on the width of the y-axis numbers — otherwise large numbers (e.g. 20000) get cut off
   const yTickChars = String(Math.round(maxVal)).length;
   const padL = Math.max(yTitle ? 44 : 30, (yTitle ? 20 : 8) + yTickChars*5.6 + 6), padR=10, padT=20;
   const innerW=W-padL-padR, innerH=H-padT-padB;
@@ -1846,7 +1846,7 @@ function renderDashboard(){
 
   // Observations Closed per Month — driven by the sheet's Closing Date column.
   // Date filters apply to the CLOSING date here (not the raised date), so this
-  // answers "kis month mein kitni close hui".
+  // answers "how many were closed in which month".
   let closedCd = DATA.obs.slice();
   if(projFilter) closedCd = closedCd.filter(o=>o.project===projFilter);
   const cdSkipped = closedCd.filter(o=>o.closingDate && !isUsableDate(o.closingDate)).length;
@@ -2105,8 +2105,8 @@ function renderViolationsView(){
   );
   const rows = base.filter(passDate);
   const anchorKey = monthFilter || (toFilter ? toFilter.slice(0,7) : null);
-  // axis April se shuru hota hai — jin mahinon ka data nahi, unka naam phir bhi
-  // x-axis par aata hai (bar zero height ka hoga)
+  // the axis starts from April — months with no data still show their name
+  // on the x-axis (their bar is just zero height)
   const months6 = anchorKey ? lastMonths(6, anchorKey) : violMonthAxis(rows);
   const catLabels = months6.map(m=>m.label);
   DASH_VIOL = rows;
@@ -2218,7 +2218,7 @@ function renderViolationsView(){
   ]);
   const unplaced = rows.filter(v=>!violMonthKey(v)).length;
   const trendNoteEl = document.getElementById('violTrendNote');
-  if(trendNoteEl) trendNoteEl.textContent = unplaced ? unplaced+' record'+(unplaced>1?'s':'')+' bina date/month ke — chart mein shamil nahi' : '';
+  if(trendNoteEl) trendNoteEl.textContent = unplaced ? unplaced+' record'+(unplaced>1?'s':'')+' without a date/month — not included in the chart' : '';
   const penNoteEl = document.getElementById('violPenStatusNote');
   if(penNoteEl) penNoteEl.textContent = totalPenalty>0 ? Math.round(paidPenalty/totalPenalty*100)+'% recovered' : 'no penalties';
   const stColors = {Open:'#dc2626',Ongoing:'#facc15',Closed:'#16a34a'};
@@ -2304,7 +2304,7 @@ function clearChallanFilters(){
   renderChallanView();
 }
 
-/* Same naam ki kitni violations hain — repeat-offender badge/penalty note ke liye */
+/* How many violations exist under the same name — for the repeat-offender badge/penalty note */
 function violRepeatCount(name){
   name = String(name||'').trim().toLowerCase();
   if(!name) return 0;
@@ -2362,11 +2362,11 @@ function renderChallanView(){
 }
 
 /* ============================= OBSERVATION CLOSURE (employee self-service) ============================= */
-/* Ye sirf isi tab ke liye hai — baaki dashboard ka data/logic bilkul nahi chhera gaya.
-   Employee ko sirf 2 cheezein change karne ka right hai: Status aur Evidence (pic/PDF).
-   File Google Drive mein jaati hai aur link seedha "OBSERVATIONS (CLOSURE)" sheet tab
-   mein wapis likha jata hai — is ke liye ek chhota Google Apps Script Web App chahiye
-   hota hai (dashboard khud sheet mein likh nahi sakta, sirf parh sakta hai). */
+/* This is only for this tab — the rest of the dashboard's data/logic is untouched.
+   An employee can change only 2 things: Status and Evidence (pic/PDF).
+   The file goes to Google Drive and the link is written straight back to the
+   "OBSERVATIONS (CLOSURE)" sheet tab — that needs a small Google Apps Script Web
+   App (the dashboard itself can only read the sheet, not write to it). */
 let CLOSURE_ROWS = [];
 let CLOSURE_ACTIVE_ROWNUM = null;
 const CLOSURE_SCRIPT_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycbwIlLEqPjlMq_aOr0bZkFuDqpw5YFmmKXCrpGSPEKQRZoPDDKDpsSDf-SDEi5gL6FBoLQ/exec';
@@ -2374,10 +2374,10 @@ let CLOSURE_SCRIPT_URL = safeStoreGet('localStorage','hse_closure_script_url') |
 
 function connectClosureScript(){
   const val = String((document.getElementById('closureScriptUrlInput')||{}).value||'').trim();
-  if(!val){ toast('Apps Script Web App URL daalein'); return; }
+  if(!val){ toast('Enter the Apps Script Web App URL'); return; }
   CLOSURE_SCRIPT_URL = val;
   safeStoreSet('localStorage','hse_closure_script_url', val);
-  toast('Closure submit link connect ho gaya');
+  toast('Closure submit link connected');
   updateClosureConnectPanel();
 }
 function updateClosureConnectPanel(){
@@ -2444,7 +2444,7 @@ function renderClosureView(){
   document.getElementById('cloTotal').textContent = all.length;
 
   if(!rows.length){
-    tbody.innerHTML = `<tr><td colspan="11"><div class="empty" style="padding:30px"><div class="e-ic">✅</div>Koi observation is filter mein nahi mili.</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty" style="padding:30px"><div class="e-ic">✅</div>No observations match this filter.</div></td></tr>`;
     return;
   }
 
@@ -2467,9 +2467,9 @@ function renderClosureView(){
 }
 
 function openClosureModal(rowNum){
-  if(!CLOSURE_SCRIPT_URL){ updateClosureConnectPanel(); toast('Pehle Google Sheet Sync tab mein Closure Submit Link connect karein'); return; }
+  if(!CLOSURE_SCRIPT_URL){ updateClosureConnectPanel(); toast('First connect the Closure Submit Link in the Google Sheet Sync tab'); return; }
   const r = (DATA.closure||[]).find(x=>x.rowNum===rowNum);
-  if(!r){ toast('Row nahi mili'); return; }
+  if(!r){ toast('Row not found'); return; }
   CLOSURE_ACTIVE_ROWNUM = rowNum;
   const body = document.getElementById('closureModalBody');
   body.innerHTML = `
@@ -2487,15 +2487,15 @@ function openClosureModal(rowNum){
     <div class="field" style="margin-bottom:12px">
       <label>Closing Date</label>
       <input type="date" id="clo-closingdate" value="${escapeAttr(r.closingDate||'')}">
-      <div style="font-size:11px;color:var(--faint);margin-top:5px">Status "Closed" karte waqt ye date bharein — Google Sheet ke "Closing Date" (column M) mein save hogi.</div>
+      <div style="font-size:11px;color:var(--faint);margin-top:5px">Fill in this date when setting the Status to "Closed" — it is saved to "Closing Date" (column M) in the Google Sheet.</div>
     </div>
     <div class="field">
       <label>Evidence (Photo / PDF)</label>
       <input type="file" id="clo-evidence-file" accept="image/*,application/pdf">
-      <div style="font-size:11px;color:var(--faint);margin-top:5px">JPG, PNG ya PDF — Drive mein upload ho kar link sheet mein khud save ho jayega.</div>
+      <div style="font-size:11px;color:var(--faint);margin-top:5px">JPG, PNG or PDF — it is uploaded to Drive and the link is saved to the sheet automatically.</div>
     </div>
     <div id="clo-submit-status" style="font-size:12px;color:var(--faint);margin-top:10px"></div>
-    <div style="font-size:11px;color:var(--faint);margin-top:8px">Submitting as <b>${escapeHtml(LOGGED_IN_USER||'—')}</b> — ye naam sheet ke "Closed By" (column P) mein save hoga.${r.closedBy?` &nbsp;·&nbsp; Pehle close kiya: <b>${escapeHtml(r.closedBy)}</b>`:''}</div>
+    <div style="font-size:11px;color:var(--faint);margin-top:8px">Submitting as <b>${escapeHtml(LOGGED_IN_USER||'—')}</b> — this name is saved to "Closed By" (column P) in the sheet.${r.closedBy?` &nbsp;·&nbsp; Previously closed by: <b>${escapeHtml(r.closedBy)}</b>`:''}</div>
   `;
   document.getElementById('closureModalBg').classList.add('show');
   onClosureStatusChange();
@@ -2524,8 +2524,8 @@ function fileToBase64(file){
 }
 
 async function submitClosureUpdate(){
-  if(!CLOSURE_ACTIVE_ROWNUM){ toast('Row nahi mili'); return; }
-  if(!CLOSURE_SCRIPT_URL){ toast('Closure Submit Link connect nahi hai'); return; }
+  if(!CLOSURE_ACTIVE_ROWNUM){ toast('Row not found'); return; }
+  if(!CLOSURE_SCRIPT_URL){ toast('Closure Submit Link is not connected'); return; }
   const statusEl = document.getElementById('clo-newstatus');
   const dateEl = document.getElementById('clo-closingdate');
   const fileEl = document.getElementById('clo-evidence-file');
@@ -2543,18 +2543,18 @@ async function submitClosureUpdate(){
   const payload = { rowNum: CLOSURE_ACTIVE_ROWNUM, status: newStatus, closingDate: newClosingDate, closedBy: closedBy };
   try{
     if(file){
-      if(file.size > 8*1024*1024){ toast('File 8MB se zyada hai — chhoti file try karein'); return; }
-      if(statusMsgEl) statusMsgEl.textContent = 'File upload ho rahi hai…';
+      if(file.size > 8*1024*1024){ toast('File is larger than 8MB — please try a smaller file'); return; }
+      if(statusMsgEl) statusMsgEl.textContent = 'Uploading file…';
       payload.fileBase64 = await fileToBase64(file);
       payload.fileName = file.name;
       payload.mimeType = file.type || 'application/octet-stream';
     }
   }catch(e){
-    toast('File read nahi ho saki'); return;
+    toast('Could not read the file'); return;
   }
 
   if(btn){ btn.disabled = true; btn.textContent = 'Submitting…'; }
-  if(statusMsgEl) statusMsgEl.textContent = 'Sheet update ho rahi hai…';
+  if(statusMsgEl) statusMsgEl.textContent = 'Updating the sheet…';
   try{
     const res = await fetch(CLOSURE_SCRIPT_URL, {
       method:'POST',
@@ -2563,7 +2563,7 @@ async function submitClosureUpdate(){
     });
     const out = await res.json().catch(()=>({ok:false, error:'Bad response'}));
     if(!out || out.ok!==true) throw new Error((out&&out.error)||'Unknown error');
-    // local copy turant update kar do taake refresh se pehle bhi table sahi dikhe
+    // update the local copy immediately so the table looks right even before a refresh
     const r = (DATA.closure||[]).find(x=>x.rowNum===CLOSURE_ACTIVE_ROWNUM);
     if(r){
       r.status = newStatus;
@@ -2571,13 +2571,13 @@ async function submitClosureUpdate(){
       if(newClosingDate) r.closingDate = newClosingDate;
       if(closedBy) r.closedBy = closedBy;
     }
-    toast('Observation update ho gayi ✅');
+    toast('Observation updated ✅');
     closeClosureModal();
     renderClosureView();
   }catch(e){
     console.warn('Closure submit failed', e);
     if(statusMsgEl) statusMsgEl.textContent = '';
-    toast('Submit nahi ho saka — Apps Script URL/deployment check karein');
+    toast('Submit failed — check the Apps Script URL / deployment');
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = '✅ Submit'; }
   }
@@ -2591,22 +2591,22 @@ function autoChallanNo(v){
 
 function escapeAttr(s){ return escapeHtml(s); }
 
-/* Photos column ka raw text kisi bhi format mein ho sakta hai — comma se,
-   newline se, ya space se separated links, ya links ke aage-peechay text.
-   Ye function un sab mein se sirf asli http(s) links nikal deta hai. */
+/* The raw text in the Photos column can be in any format — links separated by
+   commas, newlines or spaces, or links with text around them.
+   This function pulls out only the real http(s) links. */
 function extractPhotoUrls(raw){
   const s = String(raw||'').trim();
   if(!s) return [];
   const matches = s.match(/https?:\/\/[^\s,]+/g);
   if(matches && matches.length) return matches.map(u=>u.replace(/[)\]]+$/,''));
-  // agar koi http(s) URL na mila (shayad sirf comma-separated plain text/path hai)
+  // no http(s) URL found (probably just comma-separated plain text/paths)
   return s.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
 }
 
-/* Google Drive ke normal "share" links (file/d/ID/view ya open?id=ID) seedhe
-   <img> tag mein nahi khulte — inhein Drive ke direct-view/thumbnail format
-   mein convert karta hai taake image challan mein dikhe. Doosre (non-Drive)
-   links ko waise ka waisa chhod deta hai. */
+/* Normal Google Drive "share" links (file/d/ID/view or open?id=ID) do not open
+   directly in an <img> tag — this converts them to Drive's direct-view/thumbnail
+   format so the image shows on the challan. Other (non-Drive) links are left
+   exactly as they are. */
 function driveDirectImageUrl(url){
   url = String(url||'').trim();
   let m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
@@ -2637,7 +2637,7 @@ function buildChallanHtml(v){
       <div class="chal-photos">
         <div class="chal-photos-title">📷 On-Spot Violation Photos (${photoList.length})</div>
         <div class="chal-photos-grid">
-          ${photoList.map(u=>`<a href="${escapeAttr(u)}" target="_blank" class="chal-photo-item"><img src="${escapeAttr(u)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="chal-photo-fail">⚠️ Photo load nahi hui — click to open</span></a>`).join('')}
+          ${photoList.map(u=>`<a href="${escapeAttr(u)}" target="_blank" class="chal-photo-item"><img src="${escapeAttr(u)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="chal-photo-fail">⚠️ Photo failed to load — click to open</span></a>`).join('')}
         </div>
       </div>`;
   }
@@ -2754,9 +2754,9 @@ function buildChallanHtml(v){
   return { title:`Challan ${challanNo}`, html };
 }
 
-/* Iframe ke saare <img> tags load (ya fail) hone ka wait karta hai, taake
-   Drive se aane wali photos print hone se pehle poori tarah load ho chuki hon.
-   Bahut dair na lage is liye ek maximum wait time (maxWait) bhi hai. */
+/* Waits for every <img> tag in the iframe to load (or fail), so photos coming
+   from Drive are fully loaded before printing. There is also a maximum wait
+   time (maxWait) so it never hangs for too long. */
 function waitForImagesReady(doc, maxWait){
   return new Promise(resolve=>{
     const imgs = Array.from(doc.images||[]);
@@ -2772,11 +2772,11 @@ function waitForImagesReady(doc, maxWait){
   });
 }
 
-/* Print — pehle hidden iframe se seedha print try karta hai, warna naya tab,
-   warna .html file download (same 3-tier fallback jo baaki app mein use hota hai) */
+/* Print — first tries printing directly from a hidden iframe, then a new tab,
+   then an .html file download (the same 3-tier fallback used elsewhere in the app) */
 function printChallan(idx){
   const v = CHAL_ROWS[idx];
-  if(!v){ toast('Row nahi mili'); return; }
+  if(!v){ toast('Row not found'); return; }
   const rep = buildChallanHtml(v);
 
   const old = document.getElementById('chalPrintFrame'); if(old) old.remove();
@@ -2810,7 +2810,7 @@ function chalPrintFallbackWindow(rep){
     try{
       w.document.open(); w.document.write(rep.html); w.document.close();
       w.focus();
-      toast('Naye tab mein challan khul gaya — wahan Print dabayein');
+      toast('Challan opened in a new tab — press Print there');
       return;
     }catch(e){}
   }
@@ -2825,9 +2825,9 @@ function chalPrintFallbackDownload(rep){
     a.download = rep.title.replace(/[^\w\- ]+/g,'').trim().slice(0,60).replace(/\s+/g,'_') + '.html';
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-    toast('Challan file download ho gayi — khol kar print kar lein');
+    toast('Challan file downloaded — open it and print');
   }catch(e){
-    toast('Print block ho gaya — dashboard ko naye tab mein khol kar print karein');
+    toast('Printing was blocked — open the dashboard in a new tab and print from there');
   }
 }
 
@@ -3070,15 +3070,15 @@ function buildPrintHtml(){
 }
 
 /* Print / PDF.
-   Google Sites (aur koi bhi embed) apne iframe ko sandbox karta hai. Agar
-   sandbox mein 'allow-modals' na ho to window.print() chup-chaap fail ho jata
-   hai, is liye teen darjay ki koshish hoti hai:
-     1) hidden iframe se seedha print (normal, non-embedded case)
-     2) naya tab kholna, wahan se user print kare (embed ke liye)
-     3) dono na chalein to report ko .html file ke tor par download karna    */
+   Google Sites (and any other embed) sandboxes its iframe. If 'allow-modals' is
+   missing from the sandbox, window.print() fails silently, so there are three
+   levels of fallback:
+     1) print directly from a hidden iframe (normal, non-embedded case)
+     2) open a new tab and let the user print from there (for embeds)
+     3) if neither works, download the report as an .html file            */
 function printKpiModal(){
   const rep = buildPrintHtml();
-  if(rep.empty){ toast('Kuch print karne ko nahi hai'); return; }
+  if(rep.empty){ toast('Nothing to print'); return; }
 
   const old = document.getElementById('printFrame'); if(old) old.remove();
   let printed = false;
@@ -3094,8 +3094,8 @@ function printKpiModal(){
     setTimeout(()=>{
       try{ f.contentWindow.focus(); f.contentWindow.print(); }
       catch(e){ printed = false; }
-      // Chrome sandbox mein print() bina error ke bhi kuch nahi karta —
-      // is liye thodi der baad check kar ke fallback chala dete hain
+      // in a Chrome sandbox, print() can do nothing without raising an error —
+      // so we check a moment later and run the fallback
       setTimeout(()=>{ if(!printed) printFallbackWindow(rep); }, 700);
     }, 250);
   }catch(e){
@@ -3110,7 +3110,7 @@ function printFallbackWindow(rep){
     try{
       w.document.open(); w.document.write(rep.html); w.document.close();
       w.focus();
-      toast('Naye tab mein report khul gayi — wahan Print dabayein');
+      toast('Report opened in a new tab — press Print there');
       return;
     }catch(e){}
   }
@@ -3125,9 +3125,9 @@ function printFallbackDownload(rep){
     a.download = rep.title.replace(/[^\w\- ]+/g,'').trim().slice(0,60).replace(/\s+/g,'_') + '.html';
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-    toast('Report file download ho gayi — khol kar print kar lein');
+    toast('Report file downloaded — open it and print');
   }catch(e){
-    toast('Print block ho gaya — dashboard ko naye tab mein khol kar print karein');
+    toast('Printing was blocked — open the dashboard in a new tab and print from there');
   }
 }
 
@@ -3199,12 +3199,12 @@ function renderStackedRiskBars(id, legendId, items){
 
 
 /* ============================= VIEW SWITCHING ============================= */
-/* Google Sheet Sync tab password ke peechey hai. Yeh sirf casual roak-tok hai —
-   file ka source koi bhi khol kar password parh sakta hai, is liye ise asli
-   security na samjhein. Ek baar unlock karne ke baad tab band hone tak khula rehta hai. */
-/* Google Sites / kisi bhi sandboxed iframe ke andar localStorage aur
-   sessionStorage access karne par SecurityError aa sakta hai. In helpers ke
-   through storage optional ban jati hai — memory fallback chalta rehta hai. */
+/* The Google Sheet Sync tab sits behind a password. This is only a casual gate —
+   anyone can open the file's source and read the password, so do not treat it as
+   real security. Once unlocked it stays open until the tab is closed. */
+/* Inside Google Sites (or any sandboxed iframe), accessing localStorage and
+   sessionStorage can throw a SecurityError. These helpers make storage optional —
+   an in-memory fallback keeps working. */
 const MEM_STORE = {};
 function safeStoreGet(area, key){
   try{ const v = window[area].getItem(key); return v===null?undefined:v; }
@@ -3219,7 +3219,7 @@ function safeStoreRemove(area, key){
   try{ window[area].removeItem(key); }catch(e){}
 }
 
-/* sandboxed embed mein alert() block ho sakta hai — us surat mein naya tab */
+/* alert() can be blocked in a sandboxed embed — in that case, use a new tab */
 function safeAlert(msg){
   try{ alert(msg); }
   catch(e){
@@ -3228,7 +3228,7 @@ function safeAlert(msg){
       w.document.open();
       w.document.write('<pre style="font:13px/1.5 Segoe UI,Arial;white-space:pre-wrap;padding:20px">'+escapeHtml(msg)+'</pre>');
       w.document.close();
-    }catch(e2){ toast('Ye message embed mein nahi dikh sakta — naye tab mein kholein'); }
+    }catch(e2){ toast('This message cannot be shown inside the embed — open it in a new tab'); }
   }
 }
 
@@ -3238,16 +3238,16 @@ let SYNC_UNLOCKED = safeStoreGet('sessionStorage','hse_sync_unlocked') === '1';
 function unlockSync(){
   if(SYNC_UNLOCKED) return true;
   let entered;
-  try{ entered = prompt('Google Sheet Sync — password daalein:'); }
+  try{ entered = prompt('Google Sheet Sync — enter password:'); }
   catch(e){ entered = undefined; }
-  // sandboxed iframe (Google Sites) mein prompt block ho sakta hai
+  // prompt can be blocked in a sandboxed iframe (Google Sites)
   if(entered === undefined){
-    toast('Is embed mein password box block hai — dashboard naye tab mein kholein');
+    toast('The password box is blocked in this embed — open the dashboard in a new tab');
     return false;
   }
   if(entered === null) return false;            // cancel
   if(entered.trim() !== SYNC_PASSWORD){
-    toast('Ghalat password');
+    toast('Incorrect password');
     return false;
   }
   SYNC_UNLOCKED = true;
@@ -3266,19 +3266,19 @@ function activateView(tab){
 }
 
 /* ============================= LOGIN (Users sheet tab) ============================= */
-/* Note: ye dashboard ek static HTML file hai, koi server backend nahi hai — Users tab
-   bhi usi public Google Sheet sey usi tareeqe (gviz JSONP) se parhi jaati hai jaise baaki
-   data. Iska matlab ye login sirf casual access-control hai (jaise Sync tab wala password),
-   asal security nahi — jo bhi is file ka source ya sheet direct khol le wo bypass kar sakta hai. */
+/* Note: this dashboard is a static HTML file with no server backend — the Users tab
+   is read from the same public Google Sheet, the same way (gviz JSONP), as the rest of
+   the data. So this login is only casual access control (like the Sync tab password),
+   not real security — anyone who opens this file's source or the sheet directly can bypass it. */
 const USERS_SHEET_TAB = 'Users';
 let LOGGED_IN_USER = safeStoreGet('sessionStorage','hse_logged_in_user') || '';
 
 /* ---------- TAB PERMISSIONS (Users sheet ka "Permission" column) ----------
-   Users tab mein ek naya column banayein: Username | Password | Permission
-   Permission cell mein comma se alag tab ke naam likhein, misaal:
+   Add a new column in the Users tab: Username | Password | Permission
+   In the Permission cell, list tab names separated by commas, for example:
        Dashboard, Violations, Violation Challan
-   "All" ya "*" likhne se saare tabs khul jaayenge.
-   Cell khaali ho ya Permission column hi na ho -> by default saare tabs (purana behaviour). */
+   Writing "All" or "*" opens every tab.
+   If the cell is empty, or there is no Permission column -> all tabs by default (old behaviour). */
 const ALL_TAB_KEYS = ['dashboard','violations','challan','closure','ims','sync'];
 const TAB_ALIASES = {
   dashboard: ['dashboard','dash','home','overview','kpi','main'],
@@ -3288,14 +3288,14 @@ const TAB_ALIASES = {
   ims: ['ims','imsschedule','imsimplementationschedule','schedule'],
   sync: ['sync','googlesheetsync','sheetsync','googlesheet','settings','admin']
 };
-let USER_TABS = null;   // null = abhi decide nahi hua, array = allowed tab keys
+let USER_TABS = null;   // null = not decided yet, array = allowed tab keys
 
 function normTabToken(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
 
 /* "Dashboard, Violations" -> ['dashboard','violations'] */
 function parsePermission(raw){
   const txt = String(raw||'').trim();
-  if(!txt) return ALL_TAB_KEYS.slice();                       // khaali = sab kuch
+  if(!txt) return ALL_TAB_KEYS.slice();                       // empty = everything
   const tokens = txt.split(/[,;|\/\n\r]+/).map(normTabToken).filter(Boolean);
   if(!tokens.length) return ALL_TAB_KEYS.slice();
   if(tokens.some(t=>t==='all'||t==='any'||t==='full')) return ALL_TAB_KEYS.slice();
@@ -3315,13 +3315,13 @@ function getAllowedTabs(){
 }
 function isTabAllowed(tab){ return getAllowedTabs().indexOf(tab) >= 0; }
 
-/* Nav buttons hide/show karta hai aur pehle allowed tab par le jaata hai */
+/* Hides/shows the nav buttons and switches to the first allowed tab */
 function applyTabPermissions(){
   const allowed = getAllowedTabs();
   document.querySelectorAll('nav.tabs button').forEach(b=>{
     b.style.display = (allowed.indexOf(b.dataset.tab) >= 0) ? '' : 'none';
   });
-  // agar abhi jo view khuli hai wo allowed nahi, to pehli allowed par shift karo
+  // if the currently open view is not allowed, switch to the first allowed one
   const current = (document.querySelector('.view.active')||{}).id || '';
   const currentTab = current.replace(/^view-/,'');
   if(allowed.indexOf(currentTab) < 0){
@@ -3345,8 +3345,8 @@ function showLoginGate(){
   loadUsernameOptions();
 }
 
-/* Login screen ka username dropdown — Users sheet tab se saare usernames bhar deta hai.
-   Sheet na parhi jaaye to chup-chaap normal typing wale box par wapas aa jaata hai. */
+/* Username dropdown on the login screen — fills in every username from the Users sheet tab.
+   If the sheet cannot be read it quietly falls back to the normal typed-input box. */
 function useTypedUsernameFallback(msg){
   const sel = document.getElementById('loginUserSelect');
   const inp = document.getElementById('loginUsername');
@@ -3542,7 +3542,7 @@ async function fetchSheetTab(sheetId, tabName){
       if(json && json.table && Array.isArray(json.table.cols)) return json;
     }catch(e){ /* try next variant */ }
   }
-  throw new Error('Could not read tab "'+tabName+'" — sheet sharing ya tab name check karein');
+  throw new Error('Could not read tab "'+tabName+'" — check the sheet sharing settings or the tab name');
 }
 
 function cellText(cell){
@@ -3563,7 +3563,7 @@ function rowsFromGviz(regKey, json){
   }
   const cfg = REGISTERS[regKey];
   const colMap = cfg.columns.map(c=>({key:c.key, type:c.type, idx:guessColumnForField(c.label, c.key, headers)}));
-  // har date column ka format (M/D/Y ya D/M/Y) pehle poori column dekh kar tay karo
+  // decide each date column's format (M/D/Y or D/M/Y) by looking at the whole column first
   const dateOrder = {};
   colMap.filter(cm=>cm.type==='date' && cm.idx>=0).forEach(cm=>{
     dateOrder[cm.key] = inferDateOrder(dataRows.map(r=>{
@@ -3628,17 +3628,17 @@ async function loadAllFromSheet(manual){
   renderClosureView();
   if(anyOk){
     setSyncStatus('Synced '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
-    if(manual) toast(anyFail ? 'Sync ho gaya, kuch tabs nahi milin' : 'Dashboard Google Sheet sey sync ho gaya');
+    if(manual) toast(anyFail ? 'Synced, but some tabs were not found' : 'Dashboard synced from Google Sheet');
   } else {
-    setSyncStatus('Sync failed — sheet sharing/tab names check karein');
-    if(manual) toast('Google Sheet se data nahi mila');
+    setSyncStatus('Sync failed — check sheet sharing / tab names');
+    if(manual) toast('No data received from the Google Sheet');
   }
 }
 
 function connectSheet(){
   const input = document.getElementById('sheetIdInput').value;
   const id = extractSheetId(input);
-  if(!id){ toast('Google Sheet ka URL ya ID daalein'); return; }
+  if(!id){ toast('Enter the Google Sheet URL or ID'); return; }
   SHEET_ID = id;
   safeStoreSet('localStorage','hse_sheet_id', id);
   loadAllFromSheet(true);
@@ -3657,7 +3657,7 @@ function disconnectSheet(){
   populateChallanFilters(); renderChallanView();
   populateClosureFilters(); renderClosureView();
   setSyncStatus('Not connected');
-  toast('Google Sheet disconnect ho gayi');
+  toast('Google Sheet disconnected');
 }
 
 function sheetHelp(){
@@ -3665,13 +3665,13 @@ function sheetHelp(){
     const cfg = REGISTERS[k];
     return '• '+cfg.sheetTab+' — '+cfg.columns.map(c=>c.label).join(', ');
   }).join('\n\n') + '\n\n• '+USERS_SHEET_TAB+' (login) — Username, Password, Permission';
-  safeAlert('Google Sheet ko dashboard sey connect karne ka tareeqa:\n\n'
-    +'1. Apni Google Sheet kholein.\n'
-    +'2. Share button -> "Anyone with the link" -> Viewer set karein.\n'
-    +'3. Sheet mein neeche diye gaye naamon sey (exact) tabs banayein, pehli row mein column headings likhein:\n\n'
+  safeAlert('How to connect a Google Sheet to this dashboard:\n\n'
+    +'1. Open your Google Sheet.\n'
+    +'2. Click Share -> set "Anyone with the link" -> Viewer.\n'
+    +'3. Create tabs in the sheet with exactly the names listed below, and put the column headings in the first row:\n\n'
     +lines
-    +'\n\n4. Sheet ka pura URL ya sirf ID yahan paste karke "Connect" dabayein.\n\n'
-    +'Dashboard har 5 minute mein khud refresh hota rahega, ya "Refresh" button sey manually update karein.');
+    +'\n\n4. Paste the full sheet URL (or just the ID) here and press "Connect".\n\n'
+    +'The dashboard refreshes automatically every 5 minutes, or use the "Refresh" button to update manually.');
 }
 
 /* ============================= INIT ============================= */
