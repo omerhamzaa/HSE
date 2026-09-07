@@ -252,10 +252,13 @@ td .cell-textarea{min-height:44px;resize:vertical}
     <div style="text-align:center;margin-bottom:22px">
       <div style="width:52px;height:52px;margin:0 auto 10px;display:grid;place-items:center;background:#f5a623;border-radius:12px;font-size:24px">⛑️</div>
       <h1 style="font-family:'Barlow Semi Condensed',system-ui,sans-serif;color:#fff;font-size:20px;font-weight:800;text-transform:uppercase;margin:0">HSE Dashboard</h1>
-      <div style="font-size:11px;color:#a9c4b3;letter-spacing:1.2px;text-transform:uppercase;margin-top:4px">Login karein</div>
+      <div style="font-size:11px;color:#a9c4b3;letter-spacing:1.2px;text-transform:uppercase;margin-top:4px">Sign in</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:12px">
-      <input id="loginUsername" type="text" placeholder="Username" autocomplete="username" style="padding:11px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:14px">
+      <select id="loginUserSelect" style="padding:11px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:14px;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23a9c4b3%22><path d=%22M7 10l5 5 5-5z%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;background-size:18px">
+        <option value="" style="color:#111">Loading users…</option>
+      </select>
+      <input id="loginUsername" type="text" placeholder="Username" autocomplete="username" style="display:none;padding:11px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:14px">
       <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')attemptLogin()" style="padding:11px 13px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-size:14px">
       <button class="btn primary" id="loginBtn" onclick="attemptLogin()" style="width:100%;padding:11px 13px;justify-content:center;display:flex">🔐 Login</button>
       <div id="loginError" style="font-size:12.5px;color:#fca5a5;min-height:16px;text-align:center"></div>
@@ -630,7 +633,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
             <tr>
               <th>Date</th><th>Project</th><th>Category</th><th>Issue</th>
               <th>Risk</th><th>Owner</th><th>Target</th><th>Status</th>
-              <th>Evidence</th><th class="actioncol">Action</th>
+              <th>Evidence</th><th>Closed By</th><th class="actioncol">Action</th>
             </tr>
           </thead>
           <tbody id="cloTableBody"></tbody>
@@ -891,6 +894,7 @@ const REGISTERS = {
       {key:'closingDate',label:'Closing Date',type:'date'},
       {key:'verified',label:'HSE Verified',type:'select',source:'verifiedOptions',badge:'ver'},
       {key:'evidence',label:'Evidence Close',type:'textarea'},
+      {key:'closedBy',label:'Closed By',type:'text'},
     ]
   },
 };
@@ -2440,7 +2444,7 @@ function renderClosureView(){
   document.getElementById('cloTotal').textContent = all.length;
 
   if(!rows.length){
-    tbody.innerHTML = `<tr><td colspan="10"><div class="empty" style="padding:30px"><div class="e-ic">✅</div>Koi observation is filter mein nahi mili.</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty" style="padding:30px"><div class="e-ic">✅</div>Koi observation is filter mein nahi mili.</div></td></tr>`;
     return;
   }
 
@@ -2456,6 +2460,7 @@ function renderClosureView(){
       <td>${escapeHtml(r.target || '—')}</td>
       <td>${badgeHtml('st', r.status)}</td>
       <td>${hasEvidence ? '<span class="badge ver-Verified">Attached</span>' : '<span class="badge neutral">—</span>'}</td>
+      <td>${escapeHtml(r.closedBy || '—')}</td>
       <td class="actioncol"><button class="btn sm primary" onclick="openClosureModal(${r.rowNum})">Update</button></td>
     </tr>`;
   }).join('');
@@ -2490,6 +2495,7 @@ function openClosureModal(rowNum){
       <div style="font-size:11px;color:var(--faint);margin-top:5px">JPG, PNG ya PDF — Drive mein upload ho kar link sheet mein khud save ho jayega.</div>
     </div>
     <div id="clo-submit-status" style="font-size:12px;color:var(--faint);margin-top:10px"></div>
+    <div style="font-size:11px;color:var(--faint);margin-top:8px">Submitting as <b>${escapeHtml(LOGGED_IN_USER||'—')}</b> — ye naam sheet ke "Closed By" (column P) mein save hoga.${r.closedBy?` &nbsp;·&nbsp; Pehle close kiya: <b>${escapeHtml(r.closedBy)}</b>`:''}</div>
   `;
   document.getElementById('closureModalBg').classList.add('show');
   onClosureStatusChange();
@@ -2533,7 +2539,8 @@ async function submitClosureUpdate(){
   const file = (fileEl && fileEl.files && fileEl.files[0]) ? fileEl.files[0] : null;
   const btn = document.getElementById('closureSubmitBtn');
 
-  const payload = { rowNum: CLOSURE_ACTIVE_ROWNUM, status: newStatus, closingDate: newClosingDate };
+  const closedBy = LOGGED_IN_USER || '';
+  const payload = { rowNum: CLOSURE_ACTIVE_ROWNUM, status: newStatus, closingDate: newClosingDate, closedBy: closedBy };
   try{
     if(file){
       if(file.size > 8*1024*1024){ toast('File 8MB se zyada hai — chhoti file try karein'); return; }
@@ -2562,6 +2569,7 @@ async function submitClosureUpdate(){
       r.status = newStatus;
       if(out.evidenceUrl) r.evidence = out.evidenceUrl;
       if(newClosingDate) r.closingDate = newClosingDate;
+      if(closedBy) r.closedBy = closedBy;
     }
     toast('Observation update ho gayi ✅');
     closeClosureModal();
@@ -3248,6 +3256,10 @@ function unlockSync(){
 }
 
 function activateView(tab){
+  if(typeof isTabAllowed === 'function' && !isTabAllowed(tab)){
+    toast('You do not have permission for this tab');
+    return;
+  }
   if(tab === 'sync' && !unlockSync()) return;
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+tab));
   document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
@@ -3261,9 +3273,130 @@ function activateView(tab){
 const USERS_SHEET_TAB = 'Users';
 let LOGGED_IN_USER = safeStoreGet('sessionStorage','hse_logged_in_user') || '';
 
+/* ---------- TAB PERMISSIONS (Users sheet ka "Permission" column) ----------
+   Users tab mein ek naya column banayein: Username | Password | Permission
+   Permission cell mein comma se alag tab ke naam likhein, misaal:
+       Dashboard, Violations, Violation Challan
+   "All" ya "*" likhne se saare tabs khul jaayenge.
+   Cell khaali ho ya Permission column hi na ho -> by default saare tabs (purana behaviour). */
+const ALL_TAB_KEYS = ['dashboard','violations','challan','closure','ims','sync'];
+const TAB_ALIASES = {
+  dashboard: ['dashboard','dash','home','overview','kpi','main'],
+  violations: ['violations','violation','viol'],
+  challan: ['challan','violationchallan','challans','print','printchallan'],
+  closure: ['closure','observationclosure','observationsclosure','obsclosure','closures'],
+  ims: ['ims','imsschedule','imsimplementationschedule','schedule'],
+  sync: ['sync','googlesheetsync','sheetsync','googlesheet','settings','admin']
+};
+let USER_TABS = null;   // null = abhi decide nahi hua, array = allowed tab keys
+
+function normTabToken(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+/* "Dashboard, Violations" -> ['dashboard','violations'] */
+function parsePermission(raw){
+  const txt = String(raw||'').trim();
+  if(!txt) return ALL_TAB_KEYS.slice();                       // khaali = sab kuch
+  const tokens = txt.split(/[,;|\/\n\r]+/).map(normTabToken).filter(Boolean);
+  if(!tokens.length) return ALL_TAB_KEYS.slice();
+  if(tokens.some(t=>t==='all'||t==='any'||t==='full')) return ALL_TAB_KEYS.slice();
+  const out = [];
+  tokens.forEach(t=>{
+    ALL_TAB_KEYS.forEach(key=>{
+      if(out.indexOf(key)>=0) return;
+      if(key===t || (TAB_ALIASES[key]||[]).indexOf(t)>=0) out.push(key);
+    });
+  });
+  return out;
+}
+
+function getAllowedTabs(){
+  if(USER_TABS && USER_TABS.length) return USER_TABS;
+  return ALL_TAB_KEYS.slice();
+}
+function isTabAllowed(tab){ return getAllowedTabs().indexOf(tab) >= 0; }
+
+/* Nav buttons hide/show karta hai aur pehle allowed tab par le jaata hai */
+function applyTabPermissions(){
+  const allowed = getAllowedTabs();
+  document.querySelectorAll('nav.tabs button').forEach(b=>{
+    b.style.display = (allowed.indexOf(b.dataset.tab) >= 0) ? '' : 'none';
+  });
+  // agar abhi jo view khuli hai wo allowed nahi, to pehli allowed par shift karo
+  const current = (document.querySelector('.view.active')||{}).id || '';
+  const currentTab = current.replace(/^view-/,'');
+  if(allowed.indexOf(currentTab) < 0){
+    const first = allowed.find(t=>t!=='sync') || allowed[0];
+    if(first){
+      document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+first));
+      document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===first));
+    }
+  }
+}
+
+function setUserTabs(list){
+  USER_TABS = (list && list.length) ? list : ALL_TAB_KEYS.slice();
+  safeStoreSet('sessionStorage','hse_user_tabs', USER_TABS.join(','));
+  applyTabPermissions();
+}
+
 function showLoginGate(){
   const gate = document.getElementById('loginGate');
   if(gate) gate.style.display = 'flex';
+  loadUsernameOptions();
+}
+
+/* Login screen ka username dropdown — Users sheet tab se saare usernames bhar deta hai.
+   Sheet na parhi jaaye to chup-chaap normal typing wale box par wapas aa jaata hai. */
+function useTypedUsernameFallback(msg){
+  const sel = document.getElementById('loginUserSelect');
+  const inp = document.getElementById('loginUsername');
+  if(sel) sel.style.display = 'none';
+  if(inp){ inp.style.display = ''; }
+  if(msg) setLoginError(msg);
+}
+
+function getLoginUsername(){
+  const sel = document.getElementById('loginUserSelect');
+  if(sel && sel.style.display !== 'none') return String(sel.value||'').trim();
+  const inp = document.getElementById('loginUsername');
+  return String((inp||{}).value||'').trim();
+}
+
+async function loadUsernameOptions(){
+  const sel = document.getElementById('loginUserSelect');
+  if(!sel || sel.dataset.loaded === '1') return;
+  if(!SHEET_ID){ useTypedUsernameFallback(''); return; }
+  try{
+    const json = await fetchSheetTab(SHEET_ID, USERS_SHEET_TAB);
+    const cols = json.table.cols || [];
+    const dataRows = json.table.rows || [];
+    let headers = cols.map(c=>c.label || '');
+    if(headers.every(h=>!h) && dataRows.length){
+      headers = (dataRows[0].c||[]).map(c=>cellText(c));
+      dataRows.shift();
+    }
+    const uIdx = guessColumnForField('Username', 'username', headers);
+    if(uIdx < 0){ useTypedUsernameFallback(''); return; }
+    const names = [];
+    dataRows.forEach(r=>{
+      const cells = r.c || [];
+      const ru = (uIdx < cells.length) ? cellText(cells[uIdx]).trim() : '';
+      if(ru && names.indexOf(ru) < 0) names.push(ru);
+    });
+    if(!names.length){ useTypedUsernameFallback(''); return; }
+    names.sort((a,b)=>a.localeCompare(b));
+    sel.innerHTML = '<option value="" style="color:#111">— Select username —</option>'
+      + names.map(n=>`<option value="${escapeHtml(n)}" style="color:#111">${escapeHtml(n)}</option>`).join('');
+    sel.dataset.loaded = '1';
+    sel.onchange = ()=>{
+      setLoginError('');
+      const p = document.getElementById('loginPassword');
+      if(p) p.focus();
+    };
+  }catch(e){
+    console.warn('Username list load failed', e);
+    useTypedUsernameFallback('');
+  }
 }
 function hideLoginGate(){
   const gate = document.getElementById('loginGate');
@@ -3284,19 +3417,21 @@ function markLoggedIn(username){
 }
 function logoutUser(){
   LOGGED_IN_USER = '';
+  USER_TABS = null;
   safeStoreRemove('sessionStorage','hse_logged_in_user');
+  safeStoreRemove('sessionStorage','hse_user_tabs');
   location.reload();
 }
 
 async function attemptLogin(){
-  const userEl = document.getElementById('loginUsername');
   const passEl = document.getElementById('loginPassword');
   const btn = document.getElementById('loginBtn');
-  const u = String((userEl||{}).value||'').trim();
+  const u = getLoginUsername();
   const p = String((passEl||{}).value||'').trim();
   setLoginError('');
-  if(!u || !p){ setLoginError('Username aur password dono daalein'); return; }
-  if(!SHEET_ID){ setLoginError('Google Sheet connect nahi hai'); return; }
+  if(!u){ setLoginError('Please select a username'); return; }
+  if(!p){ setLoginError('Please enter your password'); return; }
+  if(!SHEET_ID){ setLoginError('Google Sheet is not connected'); return; }
   if(btn){ btn.disabled = true; btn.textContent = 'Checking…'; }
   try{
     const json = await fetchSheetTab(SHEET_ID, USERS_SHEET_TAB);
@@ -3309,25 +3444,39 @@ async function attemptLogin(){
     }
     const uIdx = guessColumnForField('Username', 'username', headers);
     const pIdx = guessColumnForField('Password', 'password', headers);
+    // Permission column optional hai — na ho to sab tabs allowed
+    let permIdx = -1;
+    for(let i=0;i<headers.length;i++){
+      const h = normTabToken(headers[i]);
+      if(h==='permission'||h==='permissions'||h==='tabs'||h==='access'||h==='allowedtabs'||h==='rights'){ permIdx = i; break; }
+    }
     if(uIdx < 0 || pIdx < 0){
-      setLoginError('Users tab mein Username/Password column nahi milla');
+      setLoginError('Username/Password column not found in the Users tab');
       return;
     }
-    const match = dataRows.some(r=>{
+    const matchRow = dataRows.find(r=>{
       const cells = r.c || [];
       const ru = (uIdx<cells.length) ? cellText(cells[uIdx]).trim() : '';
       const rp = (pIdx<cells.length) ? cellText(cells[pIdx]).trim() : '';
       return ru.toLowerCase() === u.toLowerCase() && rp === p;
     });
-    if(match){
+    if(matchRow){
+      const cells = matchRow.c || [];
+      const permRaw = (permIdx>=0 && permIdx<cells.length) ? cellText(cells[permIdx]) : '';
+      const allowed = parsePermission(permRaw);
+      if(!allowed.length){
+        setLoginError('No tabs allowed for this user — ask the admin to check the Permission column');
+        return;
+      }
       markLoggedIn(u);
+      setUserTabs(allowed);
       init();
     } else {
-      setLoginError('Ghalat username ya password');
+      setLoginError('Incorrect username or password');
     }
   }catch(e){
     console.warn('Login check failed', e);
-    setLoginError('Users sheet parh nahi saka — sheet sharing/tab name check karein');
+    setLoginError('Could not read the Users sheet — check sheet sharing and tab name');
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = '🔐 Login'; }
   }
@@ -3515,7 +3664,7 @@ function sheetHelp(){
   const lines = Object.keys(REGISTERS).map(k=>{
     const cfg = REGISTERS[k];
     return '• '+cfg.sheetTab+' — '+cfg.columns.map(c=>c.label).join(', ');
-  }).join('\n\n') + '\n\n• '+USERS_SHEET_TAB+' (login) — Username, Password';
+  }).join('\n\n') + '\n\n• '+USERS_SHEET_TAB+' (login) — Username, Password, Permission';
   safeAlert('Google Sheet ko dashboard sey connect karne ka tareeqa:\n\n'
     +'1. Apni Google Sheet kholein.\n'
     +'2. Share button -> "Anyone with the link" -> Viewer set karein.\n'
@@ -3529,6 +3678,9 @@ function sheetHelp(){
 function initApp(){
   if(LOGGED_IN_USER){
     markLoggedIn(LOGGED_IN_USER);
+    const saved = safeStoreGet('sessionStorage','hse_user_tabs') || '';
+    USER_TABS = saved ? saved.split(',').filter(Boolean) : ALL_TAB_KEYS.slice();
+    applyTabPermissions();
     init();
   } else {
     showLoginGate();
