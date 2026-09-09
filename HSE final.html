@@ -610,7 +610,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
 
     <div class="toolbar">
       <div class="search">🔍
-        <input id="clo-search" type="text" placeholder="Search issue, project or category…" oninput="renderClosureView()">
+        <input id="clo-search" type="text" placeholder="Search photo no., issue, project or category…" oninput="renderClosureView()">
       </div>
       <select id="clo-project" class="filter" onchange="renderClosureView()"><option value="">All Projects</option></select>
       <select id="clo-owner" class="filter" onchange="renderClosureView()"><option value="">All Owners</option></select>
@@ -631,7 +631,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>Project</th><th>Category</th><th>Issue</th>
+              <th>Photo No.</th><th>Date</th><th>Project</th><th>Category</th><th>Issue</th>
               <th>Risk</th><th>Owner</th><th>Target</th><th>Status</th>
               <th>Evidence</th><th>Closed By</th><th class="actioncol">Action</th>
             </tr>
@@ -677,6 +677,7 @@ const REGISTERS = {
   obs:{
     label:'Observations', icon:'👁️', sheetTab:'OBSERVATIONS',
     columns:[
+      {key:'photoNo',label:'Photo No.',type:'text'},
       {key:'date',label:'Date',type:'date'},
       {key:'project',label:'Project',type:'select',source:'projects'},
       {key:'location',label:'Location',type:'text'},
@@ -879,6 +880,7 @@ const REGISTERS = {
   closure:{
     label:'Observation Closure', icon:'✅', sheetTab:'OBSERVATIONS (CLOSURE)',
     columns:[
+      {key:'photoNo',label:'Photo No.',type:'text'},
       {key:'date',label:'Date',type:'date'},
       {key:'project',label:'Project',type:'select',source:'projects'},
       {key:'location',label:'Location',type:'text'},
@@ -2433,7 +2435,7 @@ function renderClosureView(){
     if(stF==='openongoing'){ if(String(r.status||'').trim()==='Closed') return false; }
     else if(stF){ if(String(r.status||'').trim()!==stF) return false; }
     if(q){
-      const hay = [r.issue,r.project,r.category,r.owner,r.location].map(x=>String(x||'').toLowerCase()).join(' | ');
+      const hay = [r.photoNo,r.issue,r.project,r.category,r.owner,r.location].map(x=>String(x||'').toLowerCase()).join(' | ');
       if(!hay.includes(q)) return false;
     }
     return true;
@@ -2444,13 +2446,14 @@ function renderClosureView(){
   document.getElementById('cloTotal').textContent = all.length;
 
   if(!rows.length){
-    tbody.innerHTML = `<tr><td colspan="11"><div class="empty" style="padding:30px"><div class="e-ic">✅</div>No observations match this filter.</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12"><div class="empty" style="padding:30px"><div class="e-ic">✅</div>No observations match this filter.</div></td></tr>`;
     return;
   }
 
   tbody.innerHTML = rows.map(r=>{
     const hasEvidence = String(r.evidence||'').trim().length>0;
     return `<tr>
+      <td>${escapeHtml(r.photoNo || '—')}</td>
       <td>${escapeHtml(r.date || '—')}</td>
       <td>${escapeHtml(r.project || '—')}</td>
       <td>${escapeHtml(r.category || '—')}</td>
@@ -2474,7 +2477,8 @@ function openClosureModal(rowNum){
   const body = document.getElementById('closureModalBody');
   body.innerHTML = `
     <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;line-height:1.6">
-      <div><b>Project:</b> ${escapeHtml(r.project||'—')} &nbsp; · &nbsp; <b>Category:</b> ${escapeHtml(r.category||'—')}</div>
+      <div><b>Photo No.:</b> ${escapeHtml(r.photoNo||'—')} &nbsp; · &nbsp; <b>Date:</b> ${escapeHtml(r.date||'—')}</div>
+      <div style="margin-top:4px"><b>Project:</b> ${escapeHtml(r.project||'—')} &nbsp; · &nbsp; <b>Category:</b> ${escapeHtml(r.category||'—')}</div>
       <div style="margin-top:4px"><b>Issue:</b> ${escapeHtml(r.issue||'—')}</div>
       <div style="margin-top:4px"><b>Owner:</b> ${escapeHtml(r.owner||'—')} &nbsp; · &nbsp; <b>Target Date:</b> ${escapeHtml(r.target||'—')}</div>
     </div>
@@ -2487,7 +2491,7 @@ function openClosureModal(rowNum){
     <div class="field" style="margin-bottom:12px">
       <label>Closing Date</label>
       <input type="date" id="clo-closingdate" value="${escapeAttr(r.closingDate||'')}">
-      <div style="font-size:11px;color:var(--faint);margin-top:5px">Fill in this date when setting the Status to "Closed" — it is saved to "Closing Date" (column M) in the Google Sheet.</div>
+      <div style="font-size:11px;color:var(--faint);margin-top:5px">Fill in this date when setting the Status to "Closed" — it is saved to "Closing Date" (column N) in the Google Sheet.</div>
     </div>
     <div class="field">
       <label>Evidence (Photo / PDF)</label>
@@ -2495,7 +2499,7 @@ function openClosureModal(rowNum){
       <div style="font-size:11px;color:var(--faint);margin-top:5px">JPG, PNG or PDF — it is uploaded to Drive and the link is saved to the sheet automatically.</div>
     </div>
     <div id="clo-submit-status" style="font-size:12px;color:var(--faint);margin-top:10px"></div>
-    <div style="font-size:11px;color:var(--faint);margin-top:8px">Submitting as <b>${escapeHtml(LOGGED_IN_USER||'—')}</b> — this name is saved to "Closed By" (column P) in the sheet.${r.closedBy?` &nbsp;·&nbsp; Previously closed by: <b>${escapeHtml(r.closedBy)}</b>`:''}</div>
+    <div style="font-size:11px;color:var(--faint);margin-top:8px">Submitting as <b>${escapeHtml(LOGGED_IN_USER||'—')}</b> — this name is saved to "Closed By" (column Q) in the sheet.${r.closedBy?` &nbsp;·&nbsp; Previously closed by: <b>${escapeHtml(r.closedBy)}</b>`:''}</div>
   `;
   document.getElementById('closureModalBg').classList.add('show');
   onClosureStatusChange();
@@ -2851,11 +2855,12 @@ function renderKpiDetailModal(title, rows){
       <div style="overflow:auto;max-height:60vh;border:1px solid var(--line);border-radius:10px">
         <table class="kpi-detail-table">
           <thead><tr>
-            <th>Date</th><th>Project</th><th>Category</th><th>Issue</th><th>Risk</th><th>Status</th><th>Action Owner</th><th>Dept</th><th>Target</th><th>Closing Date</th>
+            <th>Photo No.</th><th>Date</th><th>Project</th><th>Category</th><th>Issue</th><th>Risk</th><th>Status</th><th>Action Owner</th><th>Dept</th><th>Target</th><th>Closing Date</th>
           </tr></thead>
           <tbody>
             ${rows.map(r=>`
               <tr>
+                <td>${escapeHtml(r.photoNo||'—')}</td>
                 <td>${escapeHtml(r.date||'—')}</td>
                 <td>${escapeHtml(r.project||'—')}</td>
                 <td>${escapeHtml(r.category||'—')}</td>
