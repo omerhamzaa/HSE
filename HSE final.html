@@ -623,6 +623,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
       </select>
       <button class="btn sm ghost" onclick="clearClosureFilters()">✕ Clear filters</button>
       <span class="spacer"></span>
+      <span class="stat-strip" id="cloScopeNote" style="display:none"><span class="s"></span></span>
       <span class="stat-strip"><span class="s">Showing <b id="cloCount">0</b> of <b id="cloTotal">0</b></span></span>
     </div>
 
@@ -2394,8 +2395,40 @@ function updateClosureConnectPanel(){
   if(input && CLOSURE_SCRIPT_URL) input.value = CLOSURE_SCRIPT_URL;
 }
 
+/* ---------- OWNER-WISE ACCESS (Users tab: "Owner Name" + "Observation Access") ----------
+   Observation Access = All  -> user sees every observation (admin / HSE manager)
+   Observation Access = Own / empty -> user sees ONLY rows where "Action Owner" = his Owner Name
+   Owner Name empty -> Username itself is used as the owner name.
+   Owner Name can hold several spellings, comma separated: "Omer Farooq, M. Omer"
+   If the "Observation Access" column does not exist at all -> old behaviour (everyone sees all). */
+let USER_OBS_SCOPE = safeStoreGet('sessionStorage','hse_obs_scope') || 'own';          // 'all' | 'own'
+let USER_OWNER_NAMES = (safeStoreGet('sessionStorage','hse_owner_names') || '').split('||').filter(Boolean);
+
+/* "Engr. Omer  Farooq" -> "omer farooq" */
+function normPersonName(s){
+  return String(s||'').toLowerCase()
+    .replace(/[^a-z0-9\u0600-\u06FF]+/g,' ')
+    .replace(/\b(mr|mrs|ms|engr|eng|dr|sir)\b/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+/* Owner cell may contain more than one person: "Ali Raza / Omer Farooq" */
+function splitOwnerCell(s){
+  return String(s||'').split(/[,\/;&|+\n\r]+|\band\b/i).map(normPersonName).filter(Boolean);
+}
+function canSeeAllObservations(){ return USER_OBS_SCOPE === 'all'; }
+function isClosureRowAllowed(r){
+  if(canSeeAllObservations()) return true;
+  const mine = (USER_OWNER_NAMES.length ? USER_OWNER_NAMES : [LOGGED_IN_USER]).map(normPersonName).filter(Boolean);
+  if(!mine.length) return false;
+  const owners = splitOwnerCell(r && r.owner);
+  return owners.some(o => mine.indexOf(o) >= 0);
+}
+function getVisibleClosureRows(){
+  return (DATA.closure||[]).filter(isClosureRowAllowed);
+}
+
 function populateClosureFilters(){
-  const rows = DATA.closure||[];
+  const rows = getVisibleClosureRows();
   const projSel = document.getElementById('clo-project');
   if(projSel){
     const cur = projSel.value;
@@ -2423,10 +2456,25 @@ function renderClosureView(){
   const tbody = document.getElementById('cloTableBody');
   if(!tbody) return;
   updateClosureConnectPanel();
-  const all = DATA.closure||[];
+  const all = getVisibleClosureRows();
+  const ownSelEl = document.getElementById('clo-owner');
+  if(ownSelEl){
+    ownSelEl.style.display = canSeeAllObservations() ? '' : 'none';
+    if(!canSeeAllObservations()) ownSelEl.value = '';
+  }
+  const scopeNote = document.getElementById('cloScopeNote');
+  if(scopeNote){
+    if(canSeeAllObservations()){
+      scopeNote.style.display = 'none';
+    } else {
+      const names = USER_OWNER_NAMES.length ? USER_OWNER_NAMES : [LOGGED_IN_USER];
+      scopeNote.style.display = '';
+      scopeNote.querySelector('.s').innerHTML = '👤 My observations: <b>'+escapeHtml(names.join(', '))+'</b>';
+    }
+  }
   const q = String((document.getElementById('clo-search')||{}).value||'').trim().toLowerCase();
   const projF = (document.getElementById('clo-project')||{}).value || '';
-  const ownF = (document.getElementById('clo-owner')||{}).value || '';
+  const ownF = canSeeAllObservations() ? ((document.getElementById('clo-owner')||{}).value || '') : '';
   const stF = (document.getElementById('clo-status')||{}).value || '';
 
   let rows = all.filter(r=>{
@@ -2446,7 +2494,7 @@ function renderClosureView(){
   document.getElementById('cloTotal').textContent = all.length;
 
   if(!rows.length){
-    tbody.innerHTML = `<tr><td colspan="12"><div class="empty" style="padding:30px"><div class="e-ic">✅</div>No observations match this filter.</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12"><div class="empty" style="padding:30px"><div class="e-ic">✅</div>${(!all.length && !canSeeAllObservations()) ? 'No observations are assigned to you. (Owner Name in the Users tab must match the "Action Owner" column exactly.)' : 'No observations match this filter.'}</div></td></tr>`;
     return;
   }
 
@@ -2473,6 +2521,7 @@ function openClosureModal(rowNum){
   if(!CLOSURE_SCRIPT_URL){ updateClosureConnectPanel(); toast('First connect the Closure Submit Link in the Google Sheet Sync tab'); return; }
   const r = (DATA.closure||[]).find(x=>x.rowNum===rowNum);
   if(!r){ toast('Row not found'); return; }
+  if(!isClosureRowAllowed(r)){ toast('This observation is not assigned to you'); return; }
   CLOSURE_ACTIVE_ROWNUM = rowNum;
   const body = document.getElementById('closureModalBody');
   body.innerHTML = `
@@ -2530,6 +2579,8 @@ function fileToBase64(file){
 async function submitClosureUpdate(){
   if(!CLOSURE_ACTIVE_ROWNUM){ toast('Row not found'); return; }
   if(!CLOSURE_SCRIPT_URL){ toast('Closure Submit Link is not connected'); return; }
+  const activeRow = (DATA.closure||[]).find(x=>x.rowNum===CLOSURE_ACTIVE_ROWNUM);
+  if(!activeRow || !isClosureRowAllowed(activeRow)){ toast('This observation is not assigned to you'); return; }
   const statusEl = document.getElementById('clo-newstatus');
   const dateEl = document.getElementById('clo-closingdate');
   const fileEl = document.getElementById('clo-evidence-file');
@@ -3425,6 +3476,8 @@ function logoutUser(){
   USER_TABS = null;
   safeStoreRemove('sessionStorage','hse_logged_in_user');
   safeStoreRemove('sessionStorage','hse_user_tabs');
+  safeStoreRemove('sessionStorage','hse_obs_scope');
+  safeStoreRemove('sessionStorage','hse_owner_names');
   location.reload();
 }
 
@@ -3455,6 +3508,16 @@ async function attemptLogin(){
       const h = normTabToken(headers[i]);
       if(h==='permission'||h==='permissions'||h==='tabs'||h==='access'||h==='allowedtabs'||h==='rights'){ permIdx = i; break; }
     }
+    // Owner Name / Observation Access columns (optional)
+    let ownerIdx = -1, obsAccIdx = -1;
+    const OWNER_HEADERS = ['ownername','ownernames','owner','actionowner','actionownername','employeename','fullname','name'];
+    const OBSACC_HEADERS = ['observationaccess','observationsaccess','obsaccess','observationview','observationscope','closureaccess','dataaccess','viewaccess','scope'];
+    for(let i=0;i<headers.length;i++){
+      if(i===uIdx || i===pIdx || i===permIdx) continue;
+      const h = normTabToken(headers[i]);
+      if(ownerIdx<0 && OWNER_HEADERS.indexOf(h)>=0) ownerIdx = i;
+      if(obsAccIdx<0 && OBSACC_HEADERS.indexOf(h)>=0) obsAccIdx = i;
+    }
     if(uIdx < 0 || pIdx < 0){
       setLoginError('Username/Password column not found in the Users tab');
       return;
@@ -3473,6 +3536,19 @@ async function attemptLogin(){
         setLoginError('No tabs allowed for this user — ask the admin to check the Permission column');
         return;
       }
+      // ---- owner-wise observation access ----
+      const ownerRaw = (ownerIdx>=0 && ownerIdx<cells.length) ? cellText(cells[ownerIdx]) : '';
+      const accRaw = (obsAccIdx>=0 && obsAccIdx<cells.length) ? normTabToken(cellText(cells[obsAccIdx])) : '';
+      const actualUser = (uIdx<cells.length) ? cellText(cells[uIdx]).trim() : u;
+      let scope;
+      if(obsAccIdx < 0) scope = 'all';                                   // column not added yet -> old behaviour
+      else if(['all','admin','full','everyone','any'].indexOf(accRaw)>=0 || String(cellText(cells[obsAccIdx])).trim()==='*') scope = 'all';
+      else scope = 'own';                                                // Own / empty / anything else
+      const ownerNames = String(ownerRaw).split(/[,;\n\r]+/).map(x=>x.trim()).filter(Boolean);
+      USER_OBS_SCOPE = scope;
+      USER_OWNER_NAMES = ownerNames.length ? ownerNames : [actualUser];
+      safeStoreSet('sessionStorage','hse_obs_scope', USER_OBS_SCOPE);
+      safeStoreSet('sessionStorage','hse_owner_names', USER_OWNER_NAMES.join('||'));
       markLoggedIn(u);
       setUserTabs(allowed);
       init();
@@ -3669,7 +3745,7 @@ function sheetHelp(){
   const lines = Object.keys(REGISTERS).map(k=>{
     const cfg = REGISTERS[k];
     return '• '+cfg.sheetTab+' — '+cfg.columns.map(c=>c.label).join(', ');
-  }).join('\n\n') + '\n\n• '+USERS_SHEET_TAB+' (login) — Username, Password, Permission';
+  }).join('\n\n') + '\n\n• '+USERS_SHEET_TAB+' (login) — Username, Password, Permission, Owner Name, Observation Access (All / Own)';
   safeAlert('How to connect a Google Sheet to this dashboard:\n\n'
     +'1. Open your Google Sheet.\n'
     +'2. Click Share -> set "Anyone with the link" -> Viewer.\n'
