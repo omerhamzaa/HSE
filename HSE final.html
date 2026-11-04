@@ -237,8 +237,45 @@ td .cell-textarea{min-height:44px;resize:vertical}
 .empty{text-align:center;padding:50px 20px;color:var(--faint)}
 .empty .e-ic{font-size:34px;margin-bottom:8px}
 
+
+/* ---------- HSE Management Summary tab ---------- */
+.sm-wrap{--navy:#0b2a5b;--navy2:#153f85;--sgreen:#1f8a3a;--sorange:#f0932b;--sred:#c0392b;--sblue:#1f4e9c}
+@keyframes smRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.sm-wrap>*{animation:smRise .45s ease both}
+.sm-wrap>*:nth-child(2){animation-delay:.06s}.sm-wrap>*:nth-child(3){animation-delay:.12s}.sm-wrap>*:nth-child(4){animation-delay:.18s}.sm-wrap>*:nth-child(5){animation-delay:.24s}
+#smKpis .kpi .l{color:#111;font-weight:700}
+#smKpis .kpi .sm-sub{font-size:11.5px;color:#222;font-style:italic;font-weight:500;margin-top:3px}
+#smKpis .kpi{display:flex;flex-direction:column}
+#smKpis .kpi .kpi-spark{margin-top:auto;padding-top:8px;box-sizing:content-box}
+.sm-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;text-align:center;border-radius:10px;overflow:hidden;border:1px solid #cfd8e6}
+.sm-table th{background:#f4f7f4;color:var(--muted);font-weight:700;padding:9px 10px;font-size:11px;letter-spacing:.3px;text-transform:uppercase;border-bottom:1px solid var(--line);border-right:1px solid #eef2f7}
+.sm-table th:last-child{border-right:0}
+.sm-table td{padding:8px 10px;border-bottom:1px solid #e3e9f2;border-right:1px solid #eef2f7;background:#fff}
+.sm-table td:last-child{border-right:0}
+.sm-table tbody tr:nth-child(even) td{background:#f7f9fc}
+.sm-table tbody tr:hover td{background:#f4f9f5}
+.sm-table td:first-child{text-align:left;font-weight:700;color:var(--ink)}
+.sm-table tr.tot td{font-weight:800;background:var(--panel2) !important;border-top:2px solid var(--line)}
+.sm-table td.clk{cursor:pointer;font-weight:600}
+.sm-table td.num-closed{color:#16a34a}.sm-table td.num-ongoing{color:#b45309}.sm-table td.num-open{color:#dc2626}.sm-table td.num-overdue{color:#ea580c}
+.sm-pct{display:flex;align-items:center;gap:8px;justify-content:center}
+.sm-pct .trk{flex:1;max-width:90px;height:8px;border-radius:4px;background:#e3e9f2;overflow:hidden}
+.sm-pct .trk i{display:block;height:100%;border-radius:4px}
+.sm-pct b{min-width:36px;text-align:right}
+.sm-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:800;font-size:12px;min-width:48px}
+.sm-pill.red{background:#fee2e2;color:#b91c1c}.sm-pill.org{background:#fef3c7;color:#b45309}.sm-pill.grn{background:#dcfce7;color:#15803d}
+/* ---------- Footer credit ---------- */
+footer.appfoot{max-width:1500px;margin:0 auto;padding:14px 22px 26px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);color:var(--faint);font-size:11.5px;letter-spacing:.2px}
+footer.appfoot .fl{display:flex;align-items:center;gap:8px}
+footer.appfoot .fl b{color:var(--muted);font-weight:600}
+footer.appfoot .dev{margin-left:auto;display:flex;align-items:center;gap:7px}
+footer.appfoot .dev .who{color:var(--primary-d);font-weight:700}
+footer.appfoot .sep{width:1px;height:12px;background:var(--line)}
+.login-credit{margin-top:16px;text-align:center;font-size:10.5px;color:#7f9a8b;letter-spacing:.3px}
+.login-credit b{color:#a9c4b3;font-weight:600}
+
 @media print{
-  header,.toolbar,.quickchips,.section-head .btn,nav,.datafile-panel,.callout{display:none!important}
+  header,.toolbar,.quickchips,.section-head .btn,nav,.datafile-panel,.callout,footer.appfoot{display:none!important}
   body{background:#fff}
   .tscroll{max-height:none;overflow:visible}
 }
@@ -263,6 +300,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
       <button class="btn primary" id="loginBtn" onclick="attemptLogin()" style="width:100%;padding:11px 13px;justify-content:center;display:flex">🔐 Login</button>
       <div id="loginError" style="font-size:12.5px;color:#fca5a5;min-height:16px;text-align:center"></div>
     </div>
+    <div class="login-credit">Developed by <b id="devCreditNameLogin"></b></div>
   </div>
 </div>
 
@@ -282,6 +320,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
       <button data-tab="challan" onclick="activateView('challan')">🖨️ Violation Challan</button>
       <button data-tab="closure" onclick="activateView('closure')">✅ Observation Closure</button>
       <button data-tab="ims" onclick="activateView('ims')">🗓️ IMS Schedule</button>
+      <button data-tab="summary" onclick="activateView('summary')">📋 HSE Management Summary</button>
       <button data-tab="sync" onclick="activateView('sync')">🔗 Google Sheet Sync</button>
     </nav>
     <span class="spacer"></span>
@@ -447,6 +486,63 @@ td .cell-textarea{min-height:44px;resize:vertical}
 
   </section>
 
+
+  <section class="view" id="view-summary">
+    <div class="section-head">
+      <div><div class="eyebrow">Management</div><h2>THE VERTICAL &nbsp;|&nbsp; HSE MANAGEMENT SUMMARY</h2></div>
+      <div class="spacer"></div>
+      <div class="dash-filter"><label style="font-size:12px;color:var(--muted);margin-right:6px">Project</label>
+        <select id="sum-project" class="filter" onchange="renderSummaryView()"><option value="">All Projects</option></select>
+      </div>
+      <div class="dash-filter"><label style="font-size:12px;color:var(--muted);margin-right:6px">Month</label>
+        <select id="sum-month" class="filter" onchange="renderSummaryView()"><option value="">All Months</option></select>
+      </div>
+      <div class="dash-filter"><label style="font-size:12px;color:var(--muted);margin-right:6px">From</label>
+        <input type="date" id="sum-from" class="filter" onchange="renderSummaryView()">
+      </div>
+      <div class="dash-filter"><label style="font-size:12px;color:var(--muted);margin-right:6px">To</label>
+        <input type="date" id="sum-to" class="filter" onchange="renderSummaryView()">
+      </div>
+      <button class="btn sm ghost" onclick="clearSummaryFilters()">↺ Last 15 days</button>
+      <button class="btn sm ghost" onclick="summaryAllTime()">All time</button>
+      <span class="view-note" id="sumRangeNote">Live data — all HSE registers</span>
+    </div>
+
+    <!-- SUMMARY VISUALS -->
+    <div id="summaryContent" class="sm-wrap">
+
+      <div class="kpis" id="smKpis" style="margin-bottom:14px"></div>
+
+      <div class="section-head" style="margin:4px 0 10px"><div><div class="eyebrow">Overview</div><h2 style="font-size:18px">Action Status at a Glance</h2></div></div>
+      <div class="grid2">
+        <div class="panel">
+          <h3>Status of all HSE actions <span class="count" id="smDonutTotal"></span></h3>
+          <div class="donut-wrap"><svg class="donut" id="smDonut" viewBox="0 0 42 42"></svg><div class="legend" id="smDonutLegend"></div></div>
+        </div>
+        <div class="panel">
+          <h3>Project-wise action status <span class="count" id="smProjTotal"></span></h3>
+          <svg class="linechart" id="smProjBars" viewBox="0 0 560 250"></svg>
+          <div class="legend-row" id="smProjBarsLegend" style="margin-top:10px;justify-content:center"></div>
+        </div>
+      </div>
+
+      <div class="grid1">
+        <div class="panel">
+          <h3>📊 Raised vs Closed per Month — Open Backlog <span class="count" id="smTrendNote">Closed by Closing Date · Backlog = cumulative raised − closed</span></h3>
+          <svg class="linechart" id="smTrend" viewBox="0 0 1100 300"></svg>
+          <div class="legend-row" style="margin-top:8px"><span class="lg-item"><span class="sw" style="background:#f4978e"></span>Raised</span><span class="lg-item"><span class="sw" style="background:#16a34a"></span>Closed</span><span class="lg-item"><span class="sw" style="background:#dc2626;border-radius:50%"></span>Open backlog</span></div>
+        </div>
+      </div>
+
+      <div class="grid1">
+        <div class="panel">
+          <h3>HSE Observations Status <span class="count" id="smTableTotal"></span></h3>
+          <div style="overflow:auto"><table class="sm-table" id="smTable"></table></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
 
   <section class="view" id="view-ims">
     <div class="section-head">
@@ -644,6 +740,11 @@ td .cell-textarea{min-height:44px;resize:vertical}
   </section>
 
 </main>
+
+<footer class="appfoot">
+  <div class="fl"><span>⛑️</span><b>HSE Dashboard</b><span class="sep"></span><span>The Vertical · Health, Safety &amp; Environment</span></div>
+  <div class="dev"><span>Developed by</span><span class="who" id="devCreditName"></span><span class="sep"></span><span id="devCreditYear"></span></div>
+</footer>
 
 <!-- OBSERVATION CLOSURE MODAL -->
 <div class="modal-bg" id="closureModalBg">
@@ -906,6 +1007,14 @@ let DATA = {};
 Object.keys(REGISTERS).forEach(k=>{ DATA[k] = []; });
 
 const STORE_PREFIX = 'hse_v2_';
+/* Credit line — change the name here, it updates the footer and the login screen */
+const DEV_CREDIT_NAME = 'Omer Hamza';
+(function(){
+  const y = new Date().getFullYear();
+  const a = document.getElementById('devCreditName'); if(a) a.textContent = DEV_CREDIT_NAME;
+  const b = document.getElementById('devCreditNameLogin'); if(b) b.textContent = DEV_CREDIT_NAME;
+  const c = document.getElementById('devCreditYear'); if(c) c.textContent = '© '+y+' The Vertical';
+})();
 let MASTER = {
   projects:[],
   departments:[],
@@ -1926,6 +2035,370 @@ function renderDashboard(){
 
   // IMS Implementation Schedule charts
   renderImsCharts();
+}
+
+/* ============================= HSE MANAGEMENT SUMMARY ============================= */
+/* Separate tab for management. Its filters are its own (do not touch the Dashboard
+   filters). Visuals are added inside #summaryContent as they are specified. */
+let SUM_SETS = {};
+function populateSummaryFilters(){
+  const projSel = document.getElementById('sum-project');
+  if(projSel){
+    const cur = projSel.value;
+    projSel.innerHTML = '<option value="">All Projects</option>' + MASTER.projects.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+    if(MASTER.projects.includes(cur)) projSel.value = cur;
+  }
+  const moSel = document.getElementById('sum-month');
+  if(moSel){
+    const cur = moSel.value;
+    const allDates = [];
+    Object.values(DATA).forEach(arr=>arr.forEach(r=>{ if(r.date) allDates.push(r.date); }));
+    const keys = Array.from(new Set(allDates.map(ymKey))).filter(k=>/^\d{4}-\d{2}$/.test(String(k||''))).sort().reverse();
+    moSel.innerHTML = '<option value="">All Months</option>' + keys.map(k=>{
+      const [y,m] = k.split('-').map(Number);
+      return `<option value="${k}">${new Date(y,m-1,1).toLocaleString('en-US',{month:'short',year:'numeric'})}</option>`;
+    }).join('');
+    if(keys.includes(cur)) moSel.value = cur;
+  }
+}
+/* Default window for the Management Summary: the last 15 days (today included).
+   The user can change From/To or press "All time" at any point. */
+const SUM_DEFAULT_DAYS = 15;
+function smIso(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+function applySummaryDefaultRange(){
+  const to = new Date(); to.setHours(0,0,0,0);
+  const from = new Date(to); from.setDate(from.getDate()-(SUM_DEFAULT_DAYS-1));
+  const f=document.getElementById('sum-from'), t=document.getElementById('sum-to'), m=document.getElementById('sum-month');
+  if(f) f.value = smIso(from);
+  if(t) t.value = smIso(to);
+  if(m) m.value = '';
+}
+function clearSummaryFilters(){
+  ['sum-project','sum-month'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  applySummaryDefaultRange();
+  renderSummaryView();
+}
+function summaryAllTime(){
+  ['sum-project','sum-month','sum-from','sum-to'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  renderSummaryView();
+}
+let SUM_DEFAULT_APPLIED = false;
+/* Returns the filter state + a passDate() helper so each visual can reuse it */
+function getSummaryFilter(){
+  const projFilter = (document.getElementById('sum-project')||{}).value || '';
+  const monthFilter = (document.getElementById('sum-month')||{}).value || '';
+  const fromFilter = (document.getElementById('sum-from')||{}).value || '';
+  const toFilter = (document.getElementById('sum-to')||{}).value || '';
+  const passDate = d => {
+    if(!monthFilter && !fromFilter && !toFilter) return true;
+    if(!d) return false;
+    if(monthFilter && ymKey(d)!==monthFilter) return false;
+    if(fromFilter && d<fromFilter) return false;
+    if(toFilter && d>toFilter) return false;
+    return true;
+  };
+  const passProj = p => !projFilter || String(p||'').trim()===projFilter;
+  const anchorKey = monthFilter || (toFilter ? toFilter.slice(0,7) : null);
+  return {projFilter, monthFilter, fromFilter, toFilter, passDate, passProj, anchorKey};
+}
+function renderSummaryView(){
+  if(!document.getElementById('summaryContent')) return;
+  if(!SUM_DEFAULT_APPLIED){ SUM_DEFAULT_APPLIED = true; applySummaryDefaultRange(); }
+  const F = getSummaryFilter();
+  const note = document.getElementById('sumRangeNote');
+  if(note){
+    if(F.monthFilter){ const [y,mo]=F.monthFilter.split('-').map(Number); note.textContent = 'Showing: '+new Date(y,mo-1,1).toLocaleString('en-US',{month:'long',year:'numeric'}); }
+    else if(F.fromFilter||F.toFilter) note.textContent = 'Showing: '+(F.fromFilter?smFmtDate(F.fromFilter):'…')+' → '+(F.toFilter?smFmtDate(F.toFilter):'…');
+    else note.textContent = 'Showing: all time';
+  }
+  SUM_SETS = {
+    obs: (DATA.obs||[]).filter(o=>F.passProj(o.project) && F.passDate(o.date)),
+    incidents: (DATA.incidents||[]).filter(r=>F.passProj(r.project) && F.passDate(r.date)),
+    firstaid: (DATA.firstaid||[]).filter(r=>F.passProj(r.project) && F.passDate(r.date)),
+    lti: (DATA.lti||[]).filter(r=>F.passProj(r.project) && F.passDate(r.date)),
+    fatality: (DATA.fatality||[]).filter(r=>F.passProj(r.project) && F.passDate(r.date)),
+    training: (DATA.training||[]).filter(r=>F.passProj(r.project) && F.passDate(r.date)),
+    induction: (DATA.induction||[]).filter(r=>F.passProj(r.project) && F.passDate(r.date)),
+    audits: (DATA.audits||[]).filter(r=>F.passProj(r.project) && F.passDate(r.date)),
+    meetings: (DATA.meetings||[]).filter(r=>F.passDate(r.date)),
+    workhours: (DATA.workhours||[]).filter(r=>F.passDate(r.date)),
+    violations: (DATA.violations||[]).filter(v=>F.passProj(v.project) && F.passDate(v.date)),
+    ims: (DATA.imsSchedule||[]),
+  };
+  renderSummaryKpis(F);
+  renderSummaryDonut();
+  renderSummaryProjBars();
+  renderSummaryTrend(F);
+  renderSummaryTable();
+}
+
+/* ----- helpers ----- */
+const SM_C = {closed:'#16a34a', ongoing:'#facc15', open:'#dc2626', raised:'#f4978e', navy:'#0b2a5b'};
+function smIsOverdue(o){ if(o.status==='Closed') return false; const d=daysUntil(o.target); return d!==null && d<0; }
+function smSplit(arr){
+  return {
+    total: arr.length,
+    closed: arr.filter(o=>o.status==='Closed'),
+    ongoing: arr.filter(o=>o.status==='Ongoing'),
+    open: arr.filter(o=>o.status==='Open'),
+    notClosed: arr.filter(o=>o.status!=='Closed'),
+    overdue: arr.filter(smIsOverdue),
+    crit: arr.filter(o=>o.status!=='Closed' && o.risk==='Critical'),
+  };
+}
+function smFmtDate(iso){
+  if(!isUsableDate(iso)) return '';
+  const [y,m,d]=iso.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}).replace(/ /g,'-');
+}
+function smProjectName(p){ return String(p||'').trim() || 'Unassigned'; }
+function smProjects(){
+  const set = new Set((SUM_SETS.obs||[]).map(o=>smProjectName(o.project)));
+  const ordered = MASTER.projects.filter(p=>set.has(p));
+  [...set].filter(p=>!ordered.includes(p)).sort().forEach(p=>ordered.push(p));
+  return ordered;
+}
+let SM_KPI_SETS = {};
+function showSummaryKpi(k){ renderKpiDetailModal(SM_KPI_TITLES[k]||'Observations', SM_KPI_SETS[k]||[]); }
+const SM_KPI_TITLES = {total:'All HSE Actions Logged', closed:'Done & OK (Closed)', ongoing:'Ongoing — Needs Follow-up', open:'Open — Pending with Action Owners', overdue:'Overdue (Past Target Date)', crit:'Critical Observations (Open/Ongoing)'};
+function showSummaryProjStatus(project, status){
+  const rows = (SUM_SETS.obs||[]).filter(o=>smProjectName(o.project)===project && (
+    status==='total' ? true : status==='overdue' ? smIsOverdue(o) : o.status===status));
+  const lab = status==='total'?'All':status==='overdue'?'Overdue':status;
+  renderKpiDetailModal(`${project} — ${lab}`, rows);
+}
+
+/* ----- 1. KPI cards (same format as the Dashboard observation cards) ----- */
+function renderSummaryKpis(F){
+  const el=document.getElementById('smKpis'); if(!el) return;
+  const obs = SUM_SETS.obs||[];
+  const S = smSplit(obs);
+  const pc = n => obs.length ? Math.round(n/obs.length*100) : 0;
+  SM_KPI_SETS = {total:obs, closed:S.closed, ongoing:S.ongoing, open:S.open, overdue:S.overdue, crit:S.crit};
+  const sub = {
+    total: (F.fromFilter&&F.toFilter) ? smFmtDate(F.fromFilter)+' – '+smFmtDate(F.toFilter) : F.monthFilter ? 'selected month' : 'all time',
+    closed: pc(S.closed.length)+'% of all actions',
+    ongoing: pc(S.ongoing.length)+'% of all actions',
+    open: pc(S.open.length)+'% of all actions',
+    overdue: 'of '+S.notClosed.length+' not-closed',
+    crit: S.crit.length ? 'rated Critical, still open' : 'none rated Critical',
+  };
+  el.innerHTML = `
+    <div class="kpi" onclick="showSummaryKpi('total')"><div class="n">${obs.length}</div><div class="l">Total HSE Actions Logged</div><div class="sm-sub">${escapeHtml(sub.total)}</div><svg class="kpi-spark" id="smspk-total" viewBox="0 0 100 26"></svg></div>
+    <div class="kpi c-closed" onclick="showSummaryKpi('closed')"><div class="n">${S.closed.length}</div><div class="l">Done &amp; OK (Closed + HSE Verified)</div><div class="sm-sub">${escapeHtml(sub.closed)}</div><svg class="kpi-spark" id="smspk-closed" viewBox="0 0 100 26"></svg></div>
+    <div class="kpi c-ongoing" onclick="showSummaryKpi('ongoing')"><div class="n">${S.ongoing.length}</div><div class="l">Ongoing – Needs Follow-up</div><div class="sm-sub">${escapeHtml(sub.ongoing)}</div><svg class="kpi-spark" id="smspk-ongoing" viewBox="0 0 100 26"></svg></div>
+    <div class="kpi c-open" onclick="showSummaryKpi('open')"><div class="n">${S.open.length}</div><div class="l">Open – Pending with Action Owners</div><div class="sm-sub">${escapeHtml(sub.open)}</div><svg class="kpi-spark" id="smspk-open" viewBox="0 0 100 26"></svg></div>
+    <div class="kpi c-over" onclick="showSummaryKpi('overdue')"><div class="n">${S.overdue.length}</div><div class="l">Overdue (Past Target Date)</div><div class="sm-sub">${escapeHtml(sub.overdue)}</div><svg class="kpi-spark" id="smspk-overdue" viewBox="0 0 100 26"></svg></div>
+    <div class="kpi c-crit" onclick="showSummaryKpi('crit')"><div class="n">${S.crit.length}</div><div class="l">Critical Observations Needing Your Help</div><div class="sm-sub">${escapeHtml(sub.crit)}</div><svg class="kpi-spark" id="smspk-crit" viewBox="0 0 100 26"></svg></div>
+  `;
+  // Sparklines: within a date window, bucket by day; otherwise by month (like the Dashboard)
+  let buckets, keyOf;
+  if(F.fromFilter && F.toFilter && F.toFilter>=F.fromFilter){
+    const [fy,fm,fd]=F.fromFilter.split('-').map(Number), [ty,tm,td]=F.toFilter.split('-').map(Number);
+    const a=new Date(fy,fm-1,fd), b=new Date(ty,tm-1,td);
+    const days=Math.min(60, Math.round((b-a)/86400000)+1);
+    buckets=[]; for(let i=0;i<days;i++){ const d=new Date(a); d.setDate(a.getDate()+i); buckets.push(smIso(d)); }
+    keyOf = o => o.date;
+  } else {
+    buckets = (F.anchorKey ? lastMonths(6, F.anchorKey) : monthsFromData(obs, 6)).map(m=>m.key);
+    keyOf = o => ymKey(o.date);
+  }
+  const series = arr => buckets.map(k=>arr.filter(o=>keyOf(o)===k).length);
+  renderSparkline('smspk-total', series(obs), '#0f7a4d');
+  renderSparkline('smspk-closed', series(S.closed), '#16a34a');
+  renderSparkline('smspk-ongoing', series(S.ongoing), '#facc15');
+  renderSparkline('smspk-open', series(S.open), '#dc2626');
+  renderSparkline('smspk-overdue', series(S.overdue), '#ea580c');
+  renderSparkline('smspk-crit', series(S.crit), '#dc2626');
+}
+
+/* ----- 2a. Status donut (dashboard renderDonut) ----- */
+const SM_ST_COLORS = {Closed:'#16a34a', Ongoing:'#facc15', Open:'#dc2626'};
+function renderSummaryDonut(){
+  const svg=document.getElementById('smDonut'); if(!svg) return;
+  const S = smSplit(SUM_SETS.obs||[]);
+  const items = [
+    {label:'Done & OK (verified)', val:S.closed.length, color:SM_ST_COLORS.Closed, key:'closed'},
+    {label:'Ongoing / needs improvement', val:S.ongoing.length, color:SM_ST_COLORS.Ongoing, key:'ongoing'},
+    {label:'Open / pending with owner', val:S.open.length, color:SM_ST_COLORS.Open, key:'open'},
+  ];
+  renderDonut('smDonut','smDonutLegend', items);
+  // make segments + legend rows clickable like the KPI cards
+  const circles = svg.querySelectorAll('g circle');
+  const live = items.filter(i=>i.val>0);
+  circles.forEach((c,i)=>{ if(live[i]){ c.style.cursor='pointer'; c.classList.add('risk-seg'); c.setAttribute('onclick',`showSummaryKpi('${live[i].key}')`); c.innerHTML=`<title>${escapeHtml(live[i].label)}: ${live[i].val}</title>`; } });
+  const legend=document.getElementById('smDonutLegend');
+  legend.querySelectorAll('.row').forEach((row,i)=>{ row.style.cursor='pointer'; row.setAttribute('onclick',`showSummaryKpi('${items[i].key}')`); });
+  const t=document.getElementById('smDonutTotal'); if(t) t.textContent = S.total+' total';
+}
+
+/* ----- 2b. Project-wise horizontal stacked bars (SVG) ----- */
+function renderSummaryProjBars(){
+  const el=document.getElementById('smProjBars'); if(!el) return;
+  const projs = smProjects();
+  const obs = SUM_SETS.obs||[];
+  const rows = projs.map(p=>{ const a=obs.filter(o=>smProjectName(o.project)===p); const S=smSplit(a); return {p, closed:S.closed.length, ongoing:S.ongoing.length, open:S.open.length, total:a.length}; });
+  const t=document.getElementById('smProjTotal'); if(t) t.textContent = obs.length+' total';
+  const lg=document.getElementById('smProjBarsLegend');
+  if(lg) lg.innerHTML = ['Closed','Ongoing','Open'].map(k=>`<span class="lg-item"><span class="sw" style="background:${SM_ST_COLORS[k]}"></span>${k}</span>`).join('');
+  const W=560, padL=118, padR=40, padT=30, padB=10;
+  const rowH = rows.length ? Math.min(38, (260-padT-padB)/rows.length) : 30;
+  const H = Math.max(120, padT+padB+rows.length*rowH);
+  el.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  if(!rows.length){ el.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle" font-size="12" fill="#8a988c">No data</text>`; return; }
+  const maxVal = Math.max(1, ...rows.map(r=>r.total));
+  const step = niceAxisStep(maxVal/5), axisMax = Math.ceil(maxVal/step)*step;
+  const innerW = W-padL-padR;
+  const xFor = v => padL + v/axisMax*innerW;
+  let g='';
+  for(let v=0; v<=axisMax+0.001; v+=step){
+    g += `<line x1="${xFor(v).toFixed(1)}" y1="${padT-4}" x2="${xFor(v).toFixed(1)}" y2="${H-padB}" stroke="#e9efe9"/><text x="${xFor(v).toFixed(1)}" y="${padT-10}" font-size="10" fill="#5c6b60" text-anchor="middle">${v}</text>`;
+  }
+  rows.forEach((r,i)=>{
+    const y = padT + i*rowH + rowH*0.3, bh = rowH*0.6;
+    const segs = [['closed','Closed','#fff'],['ongoing','Ongoing','#000'],['open','Open','#fff']]
+      .map(([k,lab,fg])=>({k,lab,fg,v:r[k], w:r[k]/axisMax*innerW})).filter(sg=>sg.v>0);
+    // Every segment must be wide enough to hold its number: give narrow ones a
+    // minimum width and take the difference from the widest segment(s), so the
+    // bar's total length (= project total) stays exact.
+    const minW = sg => String(sg.v).length*6.2+6;
+    const totalW = segs.reduce((a,sg)=>a+sg.w,0);
+    let deficit = 0;
+    segs.forEach(sg=>{ const m=minW(sg); if(sg.w<m && m<totalW*0.6){ deficit += m-sg.w; sg.w=m; sg.fixed=true; } });
+    if(deficit>0){
+      const donors = segs.filter(sg=>!sg.fixed);
+      const donorW = donors.reduce((a,sg)=>a+sg.w,0);
+      donors.forEach(sg=>{ sg.w -= deficit*(sg.w/donorW); });
+    }
+    let x = padL;
+    segs.forEach(sg=>{
+      g += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${sg.w.toFixed(1)}" height="${bh.toFixed(1)}" fill="${SM_ST_COLORS[sg.lab]}" class="risk-seg" style="cursor:pointer" onclick="showSummaryProjStatus('${jsStr(r.p)}','${sg.lab}')"><title>${escapeHtml(r.p)} — ${sg.lab}: ${sg.v}</title></rect>`;
+      const fs = sg.w >= String(sg.v).length*7+6 ? 10.5 : 9;
+      g += `<text x="${(x+sg.w/2).toFixed(1)}" y="${(y+bh/2+(fs>10?4:3.5)).toFixed(1)}" font-size="${fs}" font-weight="700" fill="${sg.fg}" text-anchor="middle" style="pointer-events:none">${sg.v}</text>`;
+      x += sg.w;
+    });
+    g += `<text x="${padL-8}" y="${(y+bh/2+4).toFixed(1)}" font-size="12" fill="#182018" text-anchor="end" font-weight="600"><title>${escapeHtml(r.p)}</title>${escapeHtml(r.p.length>17? r.p.slice(0,16)+'…' : r.p)}</text>`;
+    if(r.total) g += `<text x="${(x+6).toFixed(1)}" y="${(y+bh/2+4).toFixed(1)}" font-size="11" fill="#182018" font-weight="800" style="cursor:pointer" onclick="showSummaryProjStatus('${jsStr(r.p)}','total')">${r.total}</text>`;
+  });
+  g += `<line x1="${padL}" y1="${padT-4}" x2="${padL}" y2="${H-padB}" stroke="#8a988c"/>`;
+  el.innerHTML = g;
+}
+
+/* ----- 3. Raised vs closed per month + open backlog ----- */
+let SM_TREND_MONTHS = [];
+function showSummaryTrend(idx, kind){
+  const m = SM_TREND_MONTHS[idx]; if(!m) return;
+  const obs = SUM_SETS.obs||[];
+  let rows, title;
+  if(kind==='raised'){ rows = obs.filter(o=>ymKey(o.date)===m.key); title='Raised in '+m.full; }
+  else if(kind==='closed'){ rows = SM_TREND_CLOSED.filter(o=>ymKey(o.closingDate)===m.key); title='Closed in '+m.full+' (by Closing Date)'; }
+  else { rows = obs.filter(o=>ymKey(o.date)<=m.key && !(isUsableDate(o.closingDate) && ymKey(o.closingDate)<=m.key) && !(o.status==='Closed' && !isUsableDate(o.closingDate) && ymKey(o.date)<=m.key)); title='Open backlog at end of '+m.full; }
+  renderKpiDetailModal(title, rows);
+}
+let SM_TREND_CLOSED = [];
+function renderSummaryTrend(F){
+  const el=document.getElementById('smTrend'); if(!el) return;
+  const obs = SUM_SETS.obs||[];
+  // Closed per month goes by Closing Date. Rows marked Closed with no usable
+  // closing date are counted in their raised month so the backlog still balances.
+  SM_TREND_CLOSED = obs.filter(o=>o.status==='Closed' && isUsableDate(o.closingDate));
+  const closedNoDate = obs.filter(o=>o.status==='Closed' && !isUsableDate(o.closingDate));
+  const keys = obs.map(o=>ymKey(o.date)).concat(SM_TREND_CLOSED.map(o=>ymKey(o.closingDate))).filter(k=>/^\d{4}-\d{2}$/.test(String(k||''))).sort();
+  let months;
+  if(!keys.length) months = lastMonths(6,null).map(m=>({key:m.key,label:m.label,full:m.label}));
+  else {
+    const now=new Date(); const nowKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    let endKey = keys[keys.length-1]; if(!F.anchorKey && endKey<nowKey) endKey=nowKey;
+    if(F.anchorKey) endKey = F.anchorKey;              // Month / To filter sets the last month shown
+    else if(endKey>nowKey) endKey=nowKey;              // closing dates typed in the future should not stretch the axis
+    const [ey,em]=endKey.split('-').map(Number);
+    let startKey = (em>=FY_START_MONTH?ey:ey-1)+'-'+String(FY_START_MONTH).padStart(2,'0');
+    if(keys[0]<startKey) startKey=keys[0];
+    if(F.anchorKey || F.fromFilter){ startKey = F.monthFilter ? F.monthFilter : (F.fromFilter ? F.fromFilter.slice(0,7) : keys[0]); }
+    months = monthsBetween(startKey, endKey, 18);
+  }
+  SM_TREND_MONTHS = months;
+  const raised = months.map(m=>obs.filter(o=>ymKey(o.date)===m.key).length);
+  const closed = months.map(m=>SM_TREND_CLOSED.filter(o=>ymKey(o.closingDate)===m.key).length + closedNoDate.filter(o=>ymKey(o.date)===m.key).length);
+  // backlog: everything raised up to this month minus everything closed up to this month
+  const backlog = months.map(m=>{
+    const r = obs.filter(o=>ymKey(o.date)<=m.key).length;
+    const c = SM_TREND_CLOSED.filter(o=>ymKey(o.closingDate)<=m.key).length + closedNoDate.filter(o=>ymKey(o.date)<=m.key).length;
+    return Math.max(0, r-c);
+  });
+  const W=1100, H=300, padL=60, padR=20, padT=20, padB=40;
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const maxRaw = Math.max(1, ...raised, ...closed, ...backlog);
+  const step = niceAxisStep(maxRaw/5), axisMax = Math.ceil(maxRaw/step)*step;
+  const n=months.length, slot=innerW/n;
+  const yFor = v => padT+innerH - v/axisMax*innerH;
+  let g=`<defs>
+    <linearGradient id="smRaisedG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f9b2aa"/><stop offset="1" stop-color="#ef7f74"/></linearGradient>
+    <linearGradient id="smClosedG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22c55e"/><stop offset="1" stop-color="#15803d"/></linearGradient>
+    <linearGradient id="smBacklogFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dc2626" stop-opacity=".16"/><stop offset="1" stop-color="#dc2626" stop-opacity="0"/></linearGradient>
+  </defs>`;
+  for(let v=0; v<=axisMax+0.001; v+=step){
+    g += `<line x1="${padL}" y1="${yFor(v).toFixed(1)}" x2="${W-padR}" y2="${yFor(v).toFixed(1)}" stroke="#e9efe9"/><text x="${padL-8}" y="${(yFor(v)+4).toFixed(1)}" font-size="11" fill="#5c6b60" text-anchor="end">${v}</text>`;
+  }
+  const bw = Math.min(48, slot*0.3);
+  months.forEach((m,i)=>{
+    const cxm = padL + i*slot + slot/2;
+    const r=raised[i], c=closed[i];
+    const rx=cxm-bw-2, cx2=cxm+2;
+    if(r>0){ g += `<rect x="${rx.toFixed(1)}" y="${yFor(r).toFixed(1)}" width="${bw}" height="${(padT+innerH-yFor(r)).toFixed(1)}" fill="url(#smRaisedG)" rx="3" class="risk-seg" style="cursor:pointer" onclick="showSummaryTrend(${i},'raised')"><title>Raised — ${escapeHtml(m.full)}: ${r}</title></rect>`;
+      g += `<text x="${(rx+bw/2).toFixed(1)}" y="${(yFor(r)-5).toFixed(1)}" font-size="11" font-weight="700" fill="#182018" text-anchor="middle" style="pointer-events:none">${r}</text>`; }
+    if(c>0){ g += `<rect x="${cx2.toFixed(1)}" y="${yFor(c).toFixed(1)}" width="${bw}" height="${(padT+innerH-yFor(c)).toFixed(1)}" fill="url(#smClosedG)" rx="3" class="risk-seg" style="cursor:pointer" onclick="showSummaryTrend(${i},'closed')"><title>Closed — ${escapeHtml(m.full)}: ${c}</title></rect>`;
+      g += `<text x="${(cx2+bw/2).toFixed(1)}" y="${(yFor(c)-5).toFixed(1)}" font-size="11" font-weight="700" fill="#182018" text-anchor="middle" style="pointer-events:none">${c}</text>`; }
+    g += `<text x="${cxm.toFixed(1)}" y="${H-12}" font-size="12.5" fill="#182018" text-anchor="middle">${escapeHtml(m.label)} '${m.key.slice(2,4)}</text>`;
+  });
+  // smooth backlog line
+  const pts = backlog.map((v,i)=>[padL+i*slot+slot/2, yFor(v)]);
+  let d='';
+  pts.forEach(([x,y],i)=>{
+    if(i===0){ d += `M ${x.toFixed(1)} ${y.toFixed(1)}`; return; }
+    const [px,py]=pts[i-1]; const cxp=(px+x)/2;
+    d += ` C ${cxp.toFixed(1)} ${py.toFixed(1)}, ${cxp.toFixed(1)} ${y.toFixed(1)}, ${x.toFixed(1)} ${y.toFixed(1)}`;
+  });
+  if(pts.length>1){
+    const last=pts[pts.length-1], first=pts[0];
+    g += `<path d="${d} L ${last[0].toFixed(1)} ${padT+innerH} L ${first[0].toFixed(1)} ${padT+innerH} Z" fill="url(#smBacklogFill)" style="pointer-events:none"/>`;
+  }
+  g += `<path d="${d}" fill="none" stroke="${SM_C.open}" stroke-width="3" stroke-linecap="round"/>`;
+  pts.forEach(([x,y],i)=>{
+    g += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="#f7c948" stroke="${SM_C.open}" stroke-width="1.5" style="cursor:pointer" onclick="showSummaryTrend(${i},'backlog')"><title>Open backlog — ${escapeHtml(months[i].full)}: ${backlog[i]}</title></circle>`;
+    g += `<text x="${x.toFixed(1)}" y="${(y-10).toFixed(1)}" font-size="11" font-weight="700" fill="${SM_C.open}" text-anchor="middle" style="pointer-events:none">${backlog[i]}</text>`;
+  });
+  g += `<line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="#8a988c"/>`;
+  el.innerHTML = g;
+}
+
+/* ----- 4. Project-wise status table ----- */
+function renderSummaryTable(){
+  const el=document.getElementById('smTable'); if(!el) return;
+  const projs = smProjects();
+  const obs = SUM_SETS.obs||[];
+  const rows = projs.map(p=>{ const a=obs.filter(o=>smProjectName(o.project)===p); const S=smSplit(a); return {p, total:a.length, closed:S.closed.length, ongoing:S.ongoing.length, open:S.open.length, overdue:S.overdue.length}; });
+  const T = smSplit(obs);
+  const tt=document.getElementById('smTableTotal'); if(tt) tt.textContent = obs.length+' total';
+  const pctCell = (c,t)=>{
+    if(!t) return '<td>—</td>';
+    const v = Math.round(c/t*100);
+    const cls = v<25 ? 'red' : v<50 ? 'org' : 'grn';
+    const col = v<25 ? '#dc2626' : v<50 ? '#f59e0b' : '#16a34a';
+    return `<td><div class="sm-pct"><div class="trk"><i style="width:${v}%;background:${col}"></i></div><span class="sm-pill ${cls}">${v}%</span></div></td>`;
+  };
+  const pctTxt = (c,t)=> t ? Math.round(c/t*100)+'%' : '—';
+  const cell = (p,k,v)=>`<td class="clk num-${String(k).toLowerCase()}" onclick="showSummaryProjStatus('${jsStr(p)}','${k}')">${v}</td>`;
+  el.innerHTML = `
+    <thead><tr><th style="text-align:left">Projects</th><th>Total</th><th>Closed</th><th>Ongoing</th><th>Open</th><th>Overdue</th><th>Closure %</th></tr></thead>
+    <tbody>
+      ${rows.length ? rows.map(r=>`<tr>
+        <td>${escapeHtml(r.p)}</td>
+        ${cell(r.p,'total',r.total)}${cell(r.p,'Closed',r.closed)}${cell(r.p,'Ongoing',r.ongoing)}${cell(r.p,'Open',r.open)}${cell(r.p,'overdue',r.overdue)}
+        ${pctCell(r.closed,r.total)}
+      </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--faint)">No observations for this filter</td></tr>'}
+      <tr class="tot"><td>TOTAL</td><td>${obs.length}</td><td class="num-closed">${T.closed.length}</td><td class="num-ongoing">${T.ongoing.length}</td><td class="num-open">${T.open.length}</td><td class="num-overdue">${T.overdue.length}</td>${pctCell(T.closed.length, obs.length)}</tr>
+    </tbody>`;
 }
 
 /* ============================= SAFETY VIOLATIONS ============================= */
@@ -3335,13 +3808,14 @@ let LOGGED_IN_USER = safeStoreGet('sessionStorage','hse_logged_in_user') || '';
        Dashboard, Violations, Violation Challan
    Writing "All" or "*" opens every tab.
    If the cell is empty, or there is no Permission column -> all tabs by default (old behaviour). */
-const ALL_TAB_KEYS = ['dashboard','violations','challan','closure','ims','sync'];
+const ALL_TAB_KEYS = ['dashboard','violations','challan','closure','ims','summary','sync'];
 const TAB_ALIASES = {
   dashboard: ['dashboard','dash','home','overview','kpi','main'],
   violations: ['violations','violation','viol'],
   challan: ['challan','violationchallan','challans','print','printchallan'],
   closure: ['closure','observationclosure','observationsclosure','obsclosure','closures'],
   ims: ['ims','imsschedule','imsimplementationschedule','schedule'],
+  summary: ['summary','hsesummary','managementsummary','hsemanagementsummary','management','mgmt','executive'],
   sync: ['sync','googlesheetsync','sheetsync','googlesheet','settings','admin']
 };
 let USER_TABS = null;   // null = not decided yet, array = allowed tab keys
@@ -3707,6 +4181,8 @@ async function loadAllFromSheet(manual){
   renderChallanView();
   populateClosureFilters();
   renderClosureView();
+  populateSummaryFilters();
+  renderSummaryView();
   if(anyOk){
     setSyncStatus('Synced '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
     if(manual) toast(anyFail ? 'Synced, but some tabs were not found' : 'Dashboard synced from Google Sheet');
@@ -3737,6 +4213,7 @@ function disconnectSheet(){
   populateViolFilters(); renderViolationsView();
   populateChallanFilters(); renderChallanView();
   populateClosureFilters(); renderClosureView();
+  populateSummaryFilters(); renderSummaryView();
   setSyncStatus('Not connected');
   toast('Google Sheet disconnected');
 }
@@ -3778,6 +4255,8 @@ function init(){
   renderChallanView();
   populateClosureFilters();
   renderClosureView();
+  populateSummaryFilters();
+  renderSummaryView();
   updateClosureConnectPanel();
   if(SHEET_ID){
     document.getElementById('sheetIdInput').value = SHEET_ID;
