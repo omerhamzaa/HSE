@@ -832,19 +832,30 @@ const REGISTERS = {
   workhours:{
     label:'Work Hours', icon:'⏱️', sheetTab:'WORK HOURS',
     columns:[
-      {key:'date',label:'Date',type:'date'},
       {key:'day',label:'Day',type:'text'},
-      {key:'v3',label:'Vertical (V3)',type:'number'},
-      {key:'unitone',label:'Unitone Engineers',type:'number'},
-      {key:'worldEng',label:'World Engineering',type:'number'},
-      {key:'otherContractors',label:'Other Contractors',type:'number'},
-      {key:'vccV1V2',label:'Vertical (V1&V2) VCC',type:'number'},
-      {key:'vmc',label:'Vertical VMC',type:'number'},
-      {key:'vdc',label:'Vertical VDC',type:'number'},
-      {key:'elevation',label:'Vertical (Elevation)',type:'number'},
-      {key:'v4',label:'Vertical (V4)',type:'number'},
-      {key:'manpower',label:'Total Manpower',type:'number'},
-      {key:'manHours',label:'Total Work Hours',type:'number'},
+      {key:'date',label:'Date',type:'date'},
+      {key:'v3Manpower',label:'Vertical (V3) Manpower',type:'number'},
+      {key:'v3Contractor',label:'Contractor (V3) Manpower',type:'number'},
+      {key:'v3DailyManpower',label:'Total Daily Manpower (V3)',type:'number'},
+      {key:'v3DailyHours',label:'Total Daily Work Hours (V3)',type:'number'},
+      {key:'v3SafeHours',label:'Total Safe Man Hours (V3)',type:'number'},
+      {key:'v3TotalHours',label:'Total Work Hours (V3)',type:'number'},
+      {key:'v4Manpower',label:'Vertical (V4) Manpower',type:'number'},
+      {key:'v4Contractor',label:'Contractor (V4) Manpower',type:'number'},
+      {key:'v4DailyManpower',label:'Total Daily Manpower (V4)',type:'number'},
+      {key:'v4DailyHours',label:'Total Daily Work Hours (V4)',type:'number'},
+      {key:'v4SafeHours',label:'Total Safe Man Hours (V4)',type:'number'},
+      {key:'v4TotalHours',label:'Total Work Hours (V4)',type:'number'},
+      {key:'v5Manpower',label:'Elevation (V5) Manpower',type:'number'},
+      {key:'v5Contractor',label:'Contractor (Elevation - V5) Manpower',type:'number'},
+      {key:'v5DailyManpower',label:'Total Daily Manpower (V5)',type:'number'},
+      {key:'v5DailyHours',label:'Total Daily Work Hours (V5)',type:'number'},
+      {key:'v5SafeHours',label:'Total Safe Man Hours (V5)',type:'number'},
+      {key:'v5TotalHours',label:'Total Work Hours (V5)',type:'number'},
+      {key:'manpower',label:'Total Daily Manpower (Overall)',type:'number'},
+      {key:'manHours',label:'Total Daily Work Hours (Overall)',type:'number'},
+      {key:'safeHours',label:'Total Safe Work Hours (Overall)',type:'number'},
+      {key:'totalHours',label:'Total Work Hours',type:'number'},
       {key:'remarks',label:'Remarks',type:'textarea'},
     ]
   },
@@ -1987,9 +1998,18 @@ function renderDashboard(){
   document.getElementById('incTypeLegend').innerHTML = [['Recorded','#f4978e']]
     .map(([l,c])=>`<span class="lg-item"><span class="sw" style="background:${c}"></span>${l}</span>`).join('');
 
-  // Man-hours logged per month
-  const whAll = DATA.workhours.filter(w=>(!projFilter || w.project===projFilter) && passDate(w.date));
-  const mhVals = months6.map(m=>whAll.filter(w=>ymKey(w.date)===m.key).reduce((s,w)=>s+(Number(w.manHours)||0),0));
+  // Man-hours logged per month — pick project-specific column when filter is active
+  const whAll = DATA.workhours.filter(w=>passDate(w.date));
+  const whHoursKey = (function(){
+    if(!projFilter) return 'manHours'; // Overall
+    const pf = projFilter.trim();
+    if(pf==='V3')                        return 'v3DailyHours';
+    if(pf==='V4')                        return 'v4DailyHours';
+    if(/^elevation/i.test(pf))           return 'v5DailyHours';
+    // V1, V2, HIRA — no separate hours columns in sheet, fall back to overall
+    return 'manHours';
+  })();
+  const mhVals = months6.map(m=>whAll.filter(w=>ymKey(w.date)===m.key).reduce((s,w)=>s+(Number(w[whHoursKey])||0),0));
   renderVBarChart('manHoursChart', catLabels, mhVals, '#2563eb');
 
   // Training sessions per month (separate chart)
@@ -2009,7 +2029,9 @@ function renderDashboard(){
   // Audits / Inspections — month-wise by project (stacked), dept breakdown on hover
   const audits = DATA.audits.filter(a=>(!projFilter || a.project===projFilter) && passDate(a.date));
   const AUDIT_COLORS = ['#0f7a4d','#2563eb','#d97706','#dc2626','#7c3aed','#0891b2','#65a30d','#be185d'];
+  const AUDIT_CHART_EXCLUDE = new Set(['V1 & V2']);
   const auditProjects = MASTER.projects
+    .filter(p=>!AUDIT_CHART_EXCLUDE.has(p))
     .map(p=>({p, n:audits.filter(a=>a.project===p).length}))
     .filter(x=>x.n>0).sort((a,b)=>b.n-a.n).map(x=>x.p);
   const auditSeries = auditProjects.map((p,i)=>({
@@ -2189,7 +2211,7 @@ function renderSummaryKpis(F){
     <div class="kpi c-ongoing" onclick="showSummaryKpi('ongoing')"><div class="n">${S.ongoing.length}</div><div class="l">Ongoing – Needs Follow-up</div><div class="sm-sub">${escapeHtml(sub.ongoing)}</div><svg class="kpi-spark" id="smspk-ongoing" viewBox="0 0 100 26"></svg></div>
     <div class="kpi c-open" onclick="showSummaryKpi('open')"><div class="n">${S.open.length}</div><div class="l">Open – Pending with Action Owners</div><div class="sm-sub">${escapeHtml(sub.open)}</div><svg class="kpi-spark" id="smspk-open" viewBox="0 0 100 26"></svg></div>
     <div class="kpi c-over" onclick="showSummaryKpi('overdue')"><div class="n">${S.overdue.length}</div><div class="l">Overdue (Past Target Date)</div><div class="sm-sub">${escapeHtml(sub.overdue)}</div><svg class="kpi-spark" id="smspk-overdue" viewBox="0 0 100 26"></svg></div>
-    <div class="kpi c-crit" onclick="showSummaryKpi('crit')"><div class="n">${S.crit.length}</div><div class="l">Critical Observations Needing Your Help</div><div class="sm-sub">${escapeHtml(sub.crit)}</div><svg class="kpi-spark" id="smspk-crit" viewBox="0 0 100 26"></svg></div>
+    <div class="kpi c-crit" onclick="showSummaryKpi('crit')"><div class="n">${S.crit.length}</div><div class="l">Critical Observations Needing Management Help</div><div class="sm-sub">${escapeHtml(sub.crit)}</div><svg class="kpi-spark" id="smspk-crit" viewBox="0 0 100 26"></svg></div>
   `;
   // Sparklines: within a date window, bucket by day; otherwise by month (like the Dashboard)
   let buckets, keyOf;
@@ -4145,7 +4167,7 @@ function rowsFromGviz(regKey, json){
    loaded from the Google Sheet, so new projects/depts added in future
    show up automatically — no hardcoded list to maintain. */
 function rebuildDynamicMaster(){
-  const PROJECT_EXCLUDE = new Set(['V-3','Between V1 & V2']);
+  const PROJECT_EXCLUDE = new Set(['V-3','Between V1 & V2','HO']);
   const projSet = new Set(), deptSet = new Set(), ownerSet = new Set();
   ['obs','incidents','induction','training','audits','firstaid','lti','fatality','violations'].forEach(k=>{
     (DATA[k]||[]).forEach(r=>{
@@ -4154,7 +4176,17 @@ function rebuildDynamicMaster(){
     });
   });
   (DATA.obs||[]).forEach(r=>{ if(r.owner) ownerSet.add(String(r.owner).trim()); });
-  MASTER.projects = [...projSet].filter(Boolean).sort();
+  const PROJECT_ORDER = ['V1','V2','V3','V4','Elevation','HIRA (V1 & V2)','V1 & V2'];
+  const projArr = [...projSet].filter(Boolean);
+  projArr.sort((a,b)=>{
+    const ai = PROJECT_ORDER.findIndex(p=>p===a);
+    const bi = PROJECT_ORDER.findIndex(p=>p===b);
+    if(ai!==-1 && bi!==-1) return ai-bi;
+    if(ai!==-1) return -1;
+    if(bi!==-1) return 1;
+    return a.localeCompare(b);
+  });
+  MASTER.projects = projArr;
   MASTER.departments = [...deptSet].filter(Boolean).sort();
   MASTER.owners = [...ownerSet].filter(Boolean).sort();
 }
