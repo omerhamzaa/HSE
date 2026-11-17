@@ -264,6 +264,20 @@ td .cell-textarea{min-height:44px;resize:vertical}
 .sm-pct b{min-width:36px;text-align:right}
 .sm-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:800;font-size:12px;min-width:48px}
 .sm-pill.red{background:#fee2e2;color:#b91c1c}.sm-pill.org{background:#fef3c7;color:#b45309}.sm-pill.grn{background:#dcfce7;color:#15803d}
+.sm-cmp{display:flex;flex-direction:column;gap:7px;max-width:1100px;margin:0 auto}
+.sm-cmp-row{display:grid;grid-template-columns:150px 1fr 54px 64px;gap:12px;align-items:center;font-size:12.5px;padding:3px 8px}
+.sm-cmp-row.hd{font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--faint);padding-bottom:0}
+.sm-cmp-row.ov{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px 8px;margin-bottom:3px}
+.sm-cmp-row .nm{font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm-cmp-row.ov .nm{font-weight:800}
+.sm-cmp-bar{display:flex;height:16px;border-radius:8px;overflow:hidden;background:#e3e9f2}
+.sm-cmp-bar i{display:flex;align-items:center;justify-content:center;height:100%;font-style:normal;font-size:10.5px;font-weight:700;white-space:nowrap;overflow:hidden;cursor:pointer;box-shadow:inset -1px 0 0 rgba(255,255,255,.7)}
+.sm-cmp-bar i:last-child{box-shadow:none}
+.sm-cmp-bar i:hover{filter:brightness(1.1)}
+.sm-cmp-row.ov .sm-cmp-bar{height:18px;border-radius:9px}
+.sm-cmp-row .sm-pill{text-align:center;cursor:pointer}
+.sm-cmp-row .ct{font-size:11px;color:var(--muted);white-space:nowrap}
+@media(max-width:700px){.sm-cmp-row{grid-template-columns:96px 1fr 50px}.sm-cmp-row .ct{display:none}}
 /* ---------- Footer credit ---------- */
 footer.appfoot{max-width:1500px;margin:0 auto;padding:14px 22px 26px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);color:var(--faint);font-size:11.5px;letter-spacing:.2px}
 footer.appfoot .fl{display:flex;align-items:center;gap:8px}
@@ -505,6 +519,7 @@ footer.appfoot .sep{width:1px;height:12px;background:var(--line)}
       </div>
       <button class="btn sm ghost" onclick="clearSummaryFilters()">↺ Last 15 days</button>
       <button class="btn sm ghost" onclick="summaryAllTime()">All time</button>
+      <button class="btn sm" onclick="printSummary()">🖨️ Print / PDF</button>
       <span class="view-note" id="sumRangeNote">Live data — all HSE registers</span>
     </div>
 
@@ -528,16 +543,24 @@ footer.appfoot .sep{width:1px;height:12px;background:var(--line)}
 
       <div class="grid1">
         <div class="panel">
-          <h3>📊 Raised vs Closed per Month — Open Backlog <span class="count" id="smTrendNote">Closed by Closing Date · Backlog = cumulative raised − closed</span></h3>
-          <svg class="linechart" id="smTrend" viewBox="0 0 1100 300"></svg>
-          <div class="legend-row" style="margin-top:8px"><span class="lg-item"><span class="sw" style="background:#f4978e"></span>Raised</span><span class="lg-item"><span class="sw" style="background:#16a34a"></span>Closed</span><span class="lg-item"><span class="sw" style="background:#dc2626;border-radius:50%"></span>Open backlog</span></div>
+          <h3>HSE Observations Status <span class="count" id="smTableTotal"></span></h3>
+          <div style="overflow:auto"><table class="sm-table" id="smTable"></table></div>
         </div>
       </div>
 
       <div class="grid1">
         <div class="panel">
-          <h3>HSE Observations Status <span class="count" id="smTableTotal"></span></h3>
-          <div style="overflow:auto"><table class="sm-table" id="smTable"></table></div>
+          <h3>📈 HSE Compliance — Overall vs Project-wise (%) <span class="count" id="smCompNote"></span></h3>
+          <div id="smCompliance" class="sm-cmp"></div>
+          <div class="legend-row" id="smComplianceLegend" style="margin-top:8px;justify-content:center"></div>
+        </div>
+      </div>
+
+      <div class="grid1">
+        <div class="panel">
+          <h3>📊 Raised vs Closed per Month — Open Backlog <span class="count" id="smTrendNote">Closed by Closing Date · Backlog = cumulative raised − closed</span></h3>
+          <svg class="linechart" id="smTrend" viewBox="0 0 1100 300"></svg>
+          <div class="legend-row" style="margin-top:8px"><span class="lg-item"><span class="sw" style="background:#f4978e"></span>Raised</span><span class="lg-item"><span class="sw" style="background:#16a34a"></span>Closed</span><span class="lg-item"><span class="sw" style="background:#dc2626;border-radius:50%"></span>Open backlog</span></div>
         </div>
       </div>
 
@@ -2152,6 +2175,7 @@ function renderSummaryView(){
   renderSummaryProjBars();
   renderSummaryTrend(F);
   renderSummaryTable();
+  renderSummaryCompliance();
 }
 
 /* ----- helpers ----- */
@@ -2395,6 +2419,8 @@ function renderSummaryTrend(F){
 }
 
 /* ----- 4. Project-wise status table ----- */
+/* Display-only names for this table (data / filters / click-through still use the sheet's own project name) */
+const SM_TABLE_PROJ_LABELS = {'V1 & V2':'HIRA (V1 & V2)'};
 function renderSummaryTable(){
   const el=document.getElementById('smTable'); if(!el) return;
   const projs = smProjects();
@@ -2415,12 +2441,51 @@ function renderSummaryTable(){
     <thead><tr><th style="text-align:left">Projects</th><th>Total</th><th>Closed</th><th>Ongoing</th><th>Open</th><th>Overdue</th><th>Closure %</th></tr></thead>
     <tbody>
       ${rows.length ? rows.map(r=>`<tr>
-        <td>${escapeHtml(r.p)}</td>
+        <td>${escapeHtml(SM_TABLE_PROJ_LABELS[r.p]||r.p)}</td>
         ${cell(r.p,'total',r.total)}${cell(r.p,'Closed',r.closed)}${cell(r.p,'Ongoing',r.ongoing)}${cell(r.p,'Open',r.open)}${cell(r.p,'overdue',r.overdue)}
         ${pctCell(r.closed,r.total)}
       </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--faint)">No observations for this filter</td></tr>'}
       <tr class="tot"><td>TOTAL</td><td>${obs.length}</td><td class="num-closed">${T.closed.length}</td><td class="num-ongoing">${T.ongoing.length}</td><td class="num-open">${T.open.length}</td><td class="num-overdue">${T.overdue.length}</td>${pctCell(T.closed.length, obs.length)}</tr>
     </tbody>`;
+}
+
+/* ----- 5. Compliance % — overall (The Vertical) + every project, as 100% status bars ----- */
+function renderSummaryCompliance(){
+  const el=document.getElementById('smCompliance'); if(!el) return;
+  const obs = SUM_SETS.obs||[];
+  const mk = (key,label,arr,overall)=>{ const S=smSplit(arr); return {key,label,overall:!!overall,total:arr.length,closed:S.closed.length,ongoing:S.ongoing.length,open:S.open.length,overdue:S.overdue.length}; };
+  const rows = [mk('', 'Overall (The Vertical)', obs, true)]
+    .concat(smProjects().map(p=>mk(p, SM_TABLE_PROJ_LABELS[p]||p, obs.filter(o=>smProjectName(o.project)===p))));
+  const note=document.getElementById('smCompNote');
+  if(note) note.textContent = 'Compliance = Closed ÷ Total · '+obs.length+' total';
+  const lg=document.getElementById('smComplianceLegend');
+  if(lg) lg.innerHTML = [['Closed','Closed (compliant)'],['Ongoing','Ongoing'],['Open','Open']]
+    .map(([k,l])=>`<span class="lg-item"><span class="sw" style="background:${SM_ST_COLORS[k]}"></span>${l}</span>`).join('');
+  if(!obs.length){ el.innerHTML='<div class="vg-empty" style="text-align:center">No observations for this filter</div>'; return; }
+  // Whole-number percentages that add up to 100. Closed % is rounded exactly like
+  // the table's Closure % column, so the bar and the compliance pill always agree.
+  const pcts = r => {
+    const c = Math.round(r.closed/r.total*100);
+    const raw=[r.ongoing,r.open].map(v=>v/r.total*100);
+    const out=raw.map(Math.floor); let left=100-c-out[0]-out[1];
+    raw.map((v,i)=>[v-out[i],i]).sort((a,b)=>b[0]-a[0]).forEach(([,i])=>{ if(left>0 && raw[i]>0){ out[i]++; left--; } });
+    return [c,out[0],out[1]];
+  };
+  const head = '<div class="sm-cmp-row hd"><div>Project</div><div>Status share</div><div style="text-align:center">Compl.</div><div>Closed</div></div>';
+  el.innerHTML = head + rows.map(r=>{
+    if(!r.total) return `<div class="sm-cmp-row"><div class="nm">${escapeHtml(r.label)}</div><div class="sm-cmp-bar"></div><div></div><div class="ct">—</div></div>`;
+    const P = pcts(r);
+    const segs = [['Closed','closed','#fff',P[0],r.closed],['Ongoing','ongoing','#3b2f00',P[1],r.ongoing],['Open','open','#fff',P[2],r.open]].filter(sg=>sg[4]>0);
+    const bar = segs.map(([lab,kpi,fg,pc,n])=>{
+      const click = r.overall ? `showSummaryKpi('${kpi}')` : `showSummaryProjStatus('${jsStr(r.key)}','${lab}')`;
+      const txt = pc>=5 ? pc+'%' : '';
+      return `<i style="width:${(n/r.total*100).toFixed(3)}%;background:${SM_ST_COLORS[lab]};color:${fg}" onclick="${click}" title="${escapeHtml(r.label)} — ${lab}: ${n} of ${r.total} (${pc}%)">${txt}</i>`;
+    }).join('');
+    // compliance pill — same colour bands as the table's Closure % column
+    const c = P[0], cls = c<25 ? 'red' : c<50 ? 'org' : 'grn';
+    const pclick = r.overall ? `showSummaryKpi('closed')` : `showSummaryProjStatus('${jsStr(r.key)}','Closed')`;
+    return `<div class="sm-cmp-row${r.overall?' ov':''}"><div class="nm" title="${escapeHtml(r.label)}">${escapeHtml(r.label)}</div><div class="sm-cmp-bar">${bar}</div><span class="sm-pill ${cls}" onclick="${pclick}">${c}%</span><div class="ct">${r.closed} / ${r.total}</div></div>`;
+  }).join('');
 }
 
 /* ============================= SAFETY VIOLATIONS ============================= */
@@ -3328,6 +3393,7 @@ function printChallan(idx){
   const v = CHAL_ROWS[idx];
   if(!v){ toast('Row not found'); return; }
   const rep = buildChallanHtml(v);
+  if(isEmbedded() && openPrintTab(rep)){ toast('Challan opened in a new tab — print / save as PDF from there'); return; }
 
   const old = document.getElementById('chalPrintFrame'); if(old) old.remove();
   let printed = false;
@@ -3354,22 +3420,13 @@ function printChallan(idx){
 
 
 function chalPrintFallbackWindow(rep){
-  let w = null;
-  try{ w = window.open('', '_blank'); }catch(e){ w = null; }
-  if(w && w.document){
-    try{
-      w.document.open(); w.document.write(rep.html); w.document.close();
-      w.focus();
-      toast('Challan opened in a new tab — press Print there');
-      return;
-    }catch(e){}
-  }
+  if(openPrintTab(rep)){ toast('Challan opened in a new tab — print / save as PDF from there'); return; }
   chalPrintFallbackDownload(rep);
 }
 
 function chalPrintFallbackDownload(rep){
   try{
-    const blob = new Blob([rep.html], {type:'text/html'});
+    const blob = new Blob([withPrintHelpers(rep.html)], {type:'text/html'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = rep.title.replace(/[^\w\- ]+/g,'').trim().slice(0,60).replace(/\s+/g,'_') + '.html';
@@ -3620,6 +3677,44 @@ function buildPrintHtml(){
   };
 }
 
+/* ---------- Print helpers shared by every Print / PDF button ----------
+   Inside Google Sites (or any embed) the dashboard runs in a sandboxed iframe,
+   where window.print() can be ignored without any error. So when the dashboard
+   is embedded we do not rely on it: the report is opened in its own browser tab
+   straight from the click (so the popup blocker allows it), the print dialog is
+   started there automatically, and the tab also shows a Print button plus a
+   Ctrl+P hint in case the browser still blocks the automatic dialog. */
+function isEmbedded(){ try{ return window.self !== window.top; }catch(e){ return true; } }
+function withPrintHelpers(html){
+  const hint = '</button><span style="margin-left:12px;font:12px Segoe UI,Arial,sans-serif;color:#5c6b60">If the print dialog does not open, press <b>Ctrl + P</b> (Mac: <b>⌘ + P</b>) and choose “Save as PDF”.</span>';
+  const auto = '<script>window.addEventListener("load",function(){setTimeout(function(){try{window.focus();window.print();}catch(e){}},700);});<\/script>';
+  html = html.replace('🖨️ Print / Save as PDF</button>', '🖨️ Print / Save as PDF'+hint);
+  return html.replace('</body>', auto+'</body>');
+}
+function openPrintTab(rep){
+  const html = withPrintHelpers(rep.html);
+  // 1) Blob URL — needs no access to the new tab's document, so it also works
+  //    in a sandbox without 'allow-same-origin' (where document.write is refused).
+  try{
+    const url = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
+    const w = window.open(url, '_blank');
+    if(w){ setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} }, 5*60*1000); return true; }
+    try{ URL.revokeObjectURL(url); }catch(e){}
+  }catch(e){}
+  // 2) Blank tab + document.write
+  let w = null;
+  try{ w = window.open('', '_blank'); }catch(e){ w = null; }
+  if(!w) return false;
+  try{
+    w.document.open(); w.document.write(html); w.document.close();
+    try{ w.focus(); }catch(e){}
+    return true;
+  }catch(e){
+    try{ w.close(); }catch(e2){}
+    return false;
+  }
+}
+
 /* Print / PDF.
    Google Sites (and any other embed) sandboxes its iframe. If 'allow-modals' is
    missing from the sandbox, window.print() fails silently, so there are three
@@ -3630,6 +3725,7 @@ function buildPrintHtml(){
 function printKpiModal(){
   const rep = buildPrintHtml();
   if(rep.empty){ toast('Nothing to print'); return; }
+  if(isEmbedded() && openPrintTab(rep)){ toast('Report opened in a new tab — print / save as PDF from there'); return; }
 
   const old = document.getElementById('printFrame'); if(old) old.remove();
   let printed = false;
@@ -3655,22 +3751,13 @@ function printKpiModal(){
 }
 
 function printFallbackWindow(rep){
-  let w = null;
-  try{ w = window.open('', '_blank'); }catch(e){ w = null; }
-  if(w && w.document){
-    try{
-      w.document.open(); w.document.write(rep.html); w.document.close();
-      w.focus();
-      toast('Report opened in a new tab — press Print there');
-      return;
-    }catch(e){}
-  }
+  if(openPrintTab(rep)){ toast('Report opened in a new tab — print / save as PDF from there'); return; }
   printFallbackDownload(rep);
 }
 
 function printFallbackDownload(rep){
   try{
-    const blob = new Blob([rep.html], {type:'text/html'});
+    const blob = new Blob([withPrintHelpers(rep.html)], {type:'text/html'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = rep.title.replace(/[^\w\- ]+/g,'').trim().slice(0,60).replace(/\s+/g,'_') + '.html';
@@ -3679,6 +3766,85 @@ function printFallbackDownload(rep){
     toast('Report file downloaded — open it and print');
   }catch(e){
     toast('Printing was blocked — open the dashboard in a new tab and print from there');
+  }
+}
+
+/* ----- Print / PDF of the whole HSE Management Summary tab -----
+   Builds a standalone page (same styles + the tab's current visuals, with the
+   filters that are applied right now) and prints it with the same 3-level
+   fallback as the other print buttons: hidden iframe -> new tab -> .html download. */
+function buildSummaryPrintHtml(){
+  const src = document.getElementById('summaryContent');
+  if(!src) return {title:'HSE Management Summary', empty:true, html:''};
+  const clone = src.cloneNode(true);
+  clone.querySelectorAll('[onclick]').forEach(n=>n.removeAttribute('onclick'));
+  const pageCss = Array.from(document.querySelectorAll('style')).map(st=>st.textContent).join('\n');
+  const F = getSummaryFilter();
+  const range = ((document.getElementById('sumRangeNote')||{}).textContent||'').replace(/^Showing:\s*/,'') || 'all time';
+  const stamp = new Date().toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const projLabel = F.projFilter ? (SM_TABLE_PROJ_LABELS[F.projFilter]||F.projFilter) : 'All Projects';
+  const title = 'HSE Management Summary — '+range;
+  const css = `
+    *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important}
+    html,body{background:#fff !important}
+    body{margin:0;padding:14px 16px;zoom:.78}
+    .donut{width:190px !important;height:190px !important}
+    .kpis{margin-bottom:10px !important}
+    .sm-wrap>*{animation:none !important;opacity:1 !important;transform:none !important}
+    .panel,.kpi{box-shadow:none !important;break-inside:avoid;page-break-inside:avoid}
+    .kpi{cursor:default}
+    .grid2{grid-template-columns:1fr 1fr !important}
+    .kpis{grid-template-columns:repeat(6,1fr) !important}
+    .section-head{break-after:avoid;page-break-after:avoid}
+    .sm-table{break-inside:avoid;page-break-inside:avoid}
+    .pr-head{display:flex;align-items:flex-end;gap:14px;border-bottom:3px solid #0f7a4d;padding-bottom:8px;margin-bottom:12px}
+    .pr-head h1{font-family:'Barlow Semi Condensed',system-ui,sans-serif;font-size:21px;font-weight:800;color:#14201a;margin:0;letter-spacing:.3px}
+    .pr-head .pr-sub{font-size:11.5px;color:#5c6b60;margin-top:3px}
+    .pr-head .pr-meta{margin-left:auto;text-align:right;font-size:11px;color:#5c6b60;line-height:1.5}
+    .pr-head .pr-meta b{color:#182018}
+    .pr-foot{margin-top:10px;font-size:10px;color:#8a988c;text-align:center}
+    .noprint{margin:0 0 12px}
+    .noprint button{font:inherit;font-size:13px;padding:9px 16px;border-radius:8px;border:1px solid #0f7a4d;background:#0f7a4d;color:#fff;cursor:pointer;font-weight:600}
+    @media print{.noprint{display:none !important}body{padding:0}}
+    @page{size:A4 landscape;margin:9mm}
+  `;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>`
+    + `<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">`
+    + `<style>${pageCss}</style><style>${css}</style></head><body>`
+    + `<div class="noprint"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>`
+    + `<div class="pr-head"><div><h1>THE VERTICAL &nbsp;|&nbsp; HSE MANAGEMENT SUMMARY</h1><div class="pr-sub">Health, Safety &amp; Environment</div></div>`
+    + `<div class="pr-meta"><div>Project: <b>${escapeHtml(projLabel)}</b></div><div>Period: <b>${escapeHtml(range)}</b></div><div>Printed: ${escapeHtml(stamp)}${LOGGED_IN_USER?' · '+escapeHtml(LOGGED_IN_USER):''}</div></div></div>`
+    + `<div class="sm-wrap">${clone.innerHTML}</div>`
+    + `<div class="pr-foot">HSE Dashboard — The Vertical</div>`
+    + `</body></html>`;
+  return {title, empty:false, html};
+}
+function printSummary(){
+  const rep = buildSummaryPrintHtml();
+  if(rep.empty){ toast('Nothing to print'); return; }
+  if(isEmbedded() && openPrintTab(rep)){ toast('Summary opened in a new tab — print / save as PDF from there'); return; }
+  const old = document.getElementById('sumPrintFrame'); if(old) old.remove();
+  let printed = false;
+  try{
+    const f = document.createElement('iframe');
+    f.id = 'sumPrintFrame';
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    document.body.appendChild(f);
+    const d = f.contentWindow.document;
+    d.open(); d.write(rep.html); d.close();
+    f.contentWindow.addEventListener('beforeprint', ()=>{ printed = true; });
+    f.contentWindow.addEventListener('afterprint', ()=>{ printed = true; });
+    // give the web fonts a moment to load so the PDF looks like the screen (max 1.5s)
+    const fontsReady = (d.fonts && d.fonts.ready) ? d.fonts.ready : Promise.resolve();
+    Promise.race([fontsReady, new Promise(r=>setTimeout(r,1500))]).catch(()=>{}).then(()=>{
+      setTimeout(()=>{
+        try{ f.contentWindow.focus(); f.contentWindow.print(); }
+        catch(e){ printed = false; }
+        setTimeout(()=>{ if(!printed) printFallbackWindow(rep); }, 700);
+      }, 250);
+    });
+  }catch(e){
+    printFallbackWindow(rep);
   }
 }
 
@@ -3756,17 +3922,19 @@ function renderStackedRiskBars(id, legendId, items){
 /* Inside Google Sites (or any sandboxed iframe), accessing localStorage and
    sessionStorage can throw a SecurityError. These helpers make storage optional —
    an in-memory fallback keeps working. */
-const MEM_STORE = {};
+/* a function (hoisted) rather than a const: storage helpers are called higher up in
+   this script, before a const declared here would exist */
+function memStore(){ return window.__hseMemStore || (window.__hseMemStore = {}); }
 function safeStoreGet(area, key){
   try{ const v = window[area].getItem(key); return v===null?undefined:v; }
-  catch(e){ return MEM_STORE[area+':'+key]; }
+  catch(e){ return memStore()[area+':'+key]; }
 }
 function safeStoreSet(area, key, val){
-  MEM_STORE[area+':'+key] = val;
+  memStore()[area+':'+key] = val;
   try{ window[area].setItem(key, val); }catch(e){}
 }
 function safeStoreRemove(area, key){
-  delete MEM_STORE[area+':'+key];
+  delete memStore()[area+':'+key];
   try{ window[area].removeItem(key); }catch(e){}
 }
 
