@@ -264,6 +264,20 @@ td .cell-textarea{min-height:44px;resize:vertical}
 .sm-pct b{min-width:36px;text-align:right}
 .sm-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:800;font-size:12px;min-width:48px}
 .sm-pill.red{background:#fee2e2;color:#b91c1c}.sm-pill.org{background:#fef3c7;color:#b45309}.sm-pill.grn{background:#dcfce7;color:#15803d}
+.sm-cmp{display:flex;flex-direction:column;gap:7px;max-width:1100px;margin:0 auto}
+.sm-cmp-row{display:grid;grid-template-columns:150px 1fr 54px 64px;gap:12px;align-items:center;font-size:12.5px;padding:3px 8px}
+.sm-cmp-row.hd{font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--faint);padding-bottom:0}
+.sm-cmp-row.ov{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px 8px;margin-bottom:3px}
+.sm-cmp-row .nm{font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm-cmp-row.ov .nm{font-weight:800}
+.sm-cmp-bar{display:flex;height:16px;border-radius:8px;overflow:hidden;background:#e3e9f2}
+.sm-cmp-bar i{display:flex;align-items:center;justify-content:center;height:100%;font-style:normal;font-size:10.5px;font-weight:700;white-space:nowrap;overflow:hidden;cursor:pointer;box-shadow:inset -1px 0 0 rgba(255,255,255,.7)}
+.sm-cmp-bar i:last-child{box-shadow:none}
+.sm-cmp-bar i:hover{filter:brightness(1.1)}
+.sm-cmp-row.ov .sm-cmp-bar{height:18px;border-radius:9px}
+.sm-cmp-row .sm-pill{text-align:center;cursor:pointer}
+.sm-cmp-row .ct{font-size:11px;color:var(--muted);white-space:nowrap}
+@media(max-width:700px){.sm-cmp-row{grid-template-columns:96px 1fr 50px}.sm-cmp-row .ct{display:none}}
 /* ---------- Footer credit ---------- */
 footer.appfoot{max-width:1500px;margin:0 auto;padding:14px 22px 26px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);color:var(--faint);font-size:11.5px;letter-spacing:.2px}
 footer.appfoot .fl{display:flex;align-items:center;gap:8px}
@@ -505,6 +519,8 @@ footer.appfoot .sep{width:1px;height:12px;background:var(--line)}
       </div>
       <button class="btn sm ghost" onclick="clearSummaryFilters()">↺ Last 15 days</button>
       <button class="btn sm ghost" onclick="summaryAllTime()">All time</button>
+      <button class="btn sm" onclick="pdfSummary()">⬇️ PDF</button>
+      <button class="btn sm" onclick="printSummary()">🖨️ Print</button>
       <span class="view-note" id="sumRangeNote">Live data — all HSE registers</span>
     </div>
 
@@ -528,16 +544,24 @@ footer.appfoot .sep{width:1px;height:12px;background:var(--line)}
 
       <div class="grid1">
         <div class="panel">
-          <h3>📊 Raised vs Closed per Month — Open Backlog <span class="count" id="smTrendNote">Closed by Closing Date · Backlog = cumulative raised − closed</span></h3>
-          <svg class="linechart" id="smTrend" viewBox="0 0 1100 300"></svg>
-          <div class="legend-row" style="margin-top:8px"><span class="lg-item"><span class="sw" style="background:#f4978e"></span>Raised</span><span class="lg-item"><span class="sw" style="background:#16a34a"></span>Closed</span><span class="lg-item"><span class="sw" style="background:#dc2626;border-radius:50%"></span>Open backlog</span></div>
+          <h3>HSE Observations Status <span class="count" id="smTableTotal"></span></h3>
+          <div style="overflow:auto"><table class="sm-table" id="smTable"></table></div>
         </div>
       </div>
 
       <div class="grid1">
         <div class="panel">
-          <h3>HSE Observations Status <span class="count" id="smTableTotal"></span></h3>
-          <div style="overflow:auto"><table class="sm-table" id="smTable"></table></div>
+          <h3>📈 HSE Compliance — Overall vs Project-wise (%) <span class="count" id="smCompNote"></span></h3>
+          <div id="smCompliance" class="sm-cmp"></div>
+          <div class="legend-row" id="smComplianceLegend" style="margin-top:8px;justify-content:center"></div>
+        </div>
+      </div>
+
+      <div class="grid1">
+        <div class="panel">
+          <h3>📊 Raised vs Closed per Month — Open Backlog <span class="count" id="smTrendNote">Closed by Closing Date · Backlog = cumulative raised − closed</span></h3>
+          <svg class="linechart" id="smTrend" viewBox="0 0 1100 300"></svg>
+          <div class="legend-row" style="margin-top:8px"><span class="lg-item"><span class="sw" style="background:#f4978e"></span>Raised</span><span class="lg-item"><span class="sw" style="background:#16a34a"></span>Closed</span><span class="lg-item"><span class="sw" style="background:#dc2626;border-radius:50%"></span>Open backlog</span></div>
         </div>
       </div>
 
@@ -660,7 +684,7 @@ footer.appfoot .sep{width:1px;height:12px;background:var(--line)}
     <div class="section-head">
       <div><div class="eyebrow">Compliance</div><h2>Violation Challan</h2></div>
       <div class="spacer"></div>
-      <span class="view-note">Print a formal Safety Violation Notice for any entry</span>
+      <span class="view-note">Download (PDF) or print a formal Safety Violation Notice for any entry</span>
     </div>
 
     <div class="toolbar">
@@ -765,7 +789,8 @@ footer.appfoot .sep{width:1px;height:12px;background:var(--line)}
     <div class="modal-head"><h3 id="kpiModalTitle">Details</h3><span class="spacer"></span><button class="iconbtn" title="Close" onclick="closeKpiModal()">✕</button></div>
     <div class="modal-body" id="kpiModalBody" style="display:block;max-height:70vh"></div>
     <div class="modal-foot">
-      <button class="btn ghost" onclick="printKpiModal()">🖨️ Print / PDF</button>
+      <button class="btn ghost" onclick="pdfKpiModal()">⬇️ PDF</button>
+      <button class="btn ghost" onclick="printKpiModal()">🖨️ Print</button>
       <button class="btn ghost" onclick="closeKpiModal()">Close</button>
     </div>
   </div>
@@ -2152,6 +2177,7 @@ function renderSummaryView(){
   renderSummaryProjBars();
   renderSummaryTrend(F);
   renderSummaryTable();
+  renderSummaryCompliance();
 }
 
 /* ----- helpers ----- */
@@ -2395,6 +2421,8 @@ function renderSummaryTrend(F){
 }
 
 /* ----- 4. Project-wise status table ----- */
+/* Display-only names for this table (data / filters / click-through still use the sheet's own project name) */
+const SM_TABLE_PROJ_LABELS = {'V1 & V2':'HIRA (V1 & V2)'};
 function renderSummaryTable(){
   const el=document.getElementById('smTable'); if(!el) return;
   const projs = smProjects();
@@ -2415,12 +2443,51 @@ function renderSummaryTable(){
     <thead><tr><th style="text-align:left">Projects</th><th>Total</th><th>Closed</th><th>Ongoing</th><th>Open</th><th>Overdue</th><th>Closure %</th></tr></thead>
     <tbody>
       ${rows.length ? rows.map(r=>`<tr>
-        <td>${escapeHtml(r.p)}</td>
+        <td>${escapeHtml(SM_TABLE_PROJ_LABELS[r.p]||r.p)}</td>
         ${cell(r.p,'total',r.total)}${cell(r.p,'Closed',r.closed)}${cell(r.p,'Ongoing',r.ongoing)}${cell(r.p,'Open',r.open)}${cell(r.p,'overdue',r.overdue)}
         ${pctCell(r.closed,r.total)}
       </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--faint)">No observations for this filter</td></tr>'}
       <tr class="tot"><td>TOTAL</td><td>${obs.length}</td><td class="num-closed">${T.closed.length}</td><td class="num-ongoing">${T.ongoing.length}</td><td class="num-open">${T.open.length}</td><td class="num-overdue">${T.overdue.length}</td>${pctCell(T.closed.length, obs.length)}</tr>
     </tbody>`;
+}
+
+/* ----- 5. Compliance % — overall (The Vertical) + every project, as 100% status bars ----- */
+function renderSummaryCompliance(){
+  const el=document.getElementById('smCompliance'); if(!el) return;
+  const obs = SUM_SETS.obs||[];
+  const mk = (key,label,arr,overall)=>{ const S=smSplit(arr); return {key,label,overall:!!overall,total:arr.length,closed:S.closed.length,ongoing:S.ongoing.length,open:S.open.length,overdue:S.overdue.length}; };
+  const rows = [mk('', 'Overall (The Vertical)', obs, true)]
+    .concat(smProjects().map(p=>mk(p, SM_TABLE_PROJ_LABELS[p]||p, obs.filter(o=>smProjectName(o.project)===p))));
+  const note=document.getElementById('smCompNote');
+  if(note) note.textContent = 'Compliance = Closed ÷ Total · '+obs.length+' total';
+  const lg=document.getElementById('smComplianceLegend');
+  if(lg) lg.innerHTML = [['Closed','Closed (compliant)'],['Ongoing','Ongoing'],['Open','Open']]
+    .map(([k,l])=>`<span class="lg-item"><span class="sw" style="background:${SM_ST_COLORS[k]}"></span>${l}</span>`).join('');
+  if(!obs.length){ el.innerHTML='<div class="vg-empty" style="text-align:center">No observations for this filter</div>'; return; }
+  // Whole-number percentages that add up to 100. Closed % is rounded exactly like
+  // the table's Closure % column, so the bar and the compliance pill always agree.
+  const pcts = r => {
+    const c = Math.round(r.closed/r.total*100);
+    const raw=[r.ongoing,r.open].map(v=>v/r.total*100);
+    const out=raw.map(Math.floor); let left=100-c-out[0]-out[1];
+    raw.map((v,i)=>[v-out[i],i]).sort((a,b)=>b[0]-a[0]).forEach(([,i])=>{ if(left>0 && raw[i]>0){ out[i]++; left--; } });
+    return [c,out[0],out[1]];
+  };
+  const head = '<div class="sm-cmp-row hd"><div>Project</div><div>Status share</div><div style="text-align:center">Compl.</div><div>Closed</div></div>';
+  el.innerHTML = head + rows.map(r=>{
+    if(!r.total) return `<div class="sm-cmp-row"><div class="nm">${escapeHtml(r.label)}</div><div class="sm-cmp-bar"></div><div></div><div class="ct">—</div></div>`;
+    const P = pcts(r);
+    const segs = [['Closed','closed','#fff',P[0],r.closed],['Ongoing','ongoing','#3b2f00',P[1],r.ongoing],['Open','open','#fff',P[2],r.open]].filter(sg=>sg[4]>0);
+    const bar = segs.map(([lab,kpi,fg,pc,n])=>{
+      const click = r.overall ? `showSummaryKpi('${kpi}')` : `showSummaryProjStatus('${jsStr(r.key)}','${lab}')`;
+      const txt = pc>=5 ? pc+'%' : '';
+      return `<i style="width:${(n/r.total*100).toFixed(3)}%;background:${SM_ST_COLORS[lab]};color:${fg}" onclick="${click}" title="${escapeHtml(r.label)} — ${lab}: ${n} of ${r.total} (${pc}%)">${txt}</i>`;
+    }).join('');
+    // compliance pill — same colour bands as the table's Closure % column
+    const c = P[0], cls = c<25 ? 'red' : c<50 ? 'org' : 'grn';
+    const pclick = r.overall ? `showSummaryKpi('closed')` : `showSummaryProjStatus('${jsStr(r.key)}','Closed')`;
+    return `<div class="sm-cmp-row${r.overall?' ov':''}"><div class="nm" title="${escapeHtml(r.label)}">${escapeHtml(r.label)}</div><div class="sm-cmp-bar">${bar}</div><span class="sm-pill ${cls}" onclick="${pclick}">${c}%</span><div class="ct">${r.closed} / ${r.total}</div></div>`;
+  }).join('');
 }
 
 /* ============================= SAFETY VIOLATIONS ============================= */
@@ -2854,7 +2921,7 @@ function renderChallanView(){
       <td>${badgeHtml('risk', v.risk)}</td>
       <td>${badgeHtml('st', v.status)}</td>
       <td>PKR ${escapeHtml(violMoney(violNum(v.penalty)))}</td>
-      <td class="actioncol"><button class="btn sm" onclick="printChallan(${i})">🖨️ Print</button></td>
+      <td class="actioncol"><button class="btn sm" onclick="pdfChallan(${i})">⬇️ PDF</button> <button class="btn sm" onclick="printChallan(${i})">🖨️ Print</button></td>
     </tr>`;
   }).join('');
 }
@@ -3247,7 +3314,7 @@ function buildChallanHtml(v){
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Challan ${escapeHtml(challanNo)}</title><style>${css}</style></head>
   <body>
-    <div class="noprint"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>
+    <div class="noprint"><button onclick="window.print()">🖨️ Print</button></div>
     <div class="sheet">
       <div class="chal-top">
         <div class="chal-brand">
@@ -3322,63 +3389,17 @@ function waitForImagesReady(doc, maxWait){
   });
 }
 
-/* Print — first tries printing directly from a hidden iframe, then a new tab,
-   then an .html file download (the same 3-tier fallback used elsewhere in the app) */
+/* Challan: "Print" sirf print karta hai, "PDF" sirf .pdf file download karta hai.
+   (shared helpers: printReport / downloadReportPdf — neeche defined hain) */
 function printChallan(idx){
   const v = CHAL_ROWS[idx];
   if(!v){ toast('Row not found'); return; }
-  const rep = buildChallanHtml(v);
-
-  const old = document.getElementById('chalPrintFrame'); if(old) old.remove();
-  let printed = false;
-  try{
-    const f = document.createElement('iframe');
-    f.id = 'chalPrintFrame';
-    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
-    document.body.appendChild(f);
-    const d = f.contentWindow.document;
-    d.open(); d.write(rep.html); d.close();
-    f.contentWindow.addEventListener('beforeprint', ()=>{ printed = true; });
-    f.contentWindow.addEventListener('afterprint', ()=>{ printed = true; });
-    waitForImagesReady(d, 4000).then(()=>{
-      setTimeout(()=>{
-        try{ f.contentWindow.focus(); f.contentWindow.print(); }
-        catch(e){ printed = false; }
-        setTimeout(()=>{ if(!printed) chalPrintFallbackWindow(rep); }, 700);
-      }, 150);
-    });
-  }catch(e){
-    chalPrintFallbackWindow(rep);
-  }
+  printReport(buildChallanHtml(v));
 }
-
-
-function chalPrintFallbackWindow(rep){
-  let w = null;
-  try{ w = window.open('', '_blank'); }catch(e){ w = null; }
-  if(w && w.document){
-    try{
-      w.document.open(); w.document.write(rep.html); w.document.close();
-      w.focus();
-      toast('Challan opened in a new tab — press Print there');
-      return;
-    }catch(e){}
-  }
-  chalPrintFallbackDownload(rep);
-}
-
-function chalPrintFallbackDownload(rep){
-  try{
-    const blob = new Blob([rep.html], {type:'text/html'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = rep.title.replace(/[^\w\- ]+/g,'').trim().slice(0,60).replace(/\s+/g,'_') + '.html';
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-    toast('Challan file downloaded — open it and print');
-  }catch(e){
-    toast('Printing was blocked — open the dashboard in a new tab and print from there');
-  }
+function pdfChallan(idx){
+  const v = CHAL_ROWS[idx];
+  if(!v){ toast('Row not found'); return; }
+  downloadReportPdf(buildChallanHtml(v), {orientation:'p', width:800, margin:8});
 }
 
 function pct(v,total){ return total? Math.round(v/total*100) : 0; }
@@ -3588,8 +3609,8 @@ function showImsActivityDetail(activityNo, idx){
 
 function closeKpiModal(){ document.getElementById('kpiModalBg').classList.remove('show'); }
 
-/* Modal ka data (jo bhi table abhi khuli hai) print / PDF ke liye bhejta hai.
-   Hidden iframe use karta hai taake popup blocker rasta na roke. */
+/* Modal ka data (jo bhi table abhi khuli hai) ka printable page banata hai —
+   printKpiModal() isay print karta hai, pdfKpiModal() .pdf download karta hai. */
 function buildPrintHtml(){
   const title = (document.getElementById('kpiModalTitle')||{}).textContent || 'HSE Report';
   const body  = (document.getElementById('kpiModalBody')||{}).innerHTML || '';
@@ -3616,71 +3637,291 @@ function buildPrintHtml(){
     empty: !body.trim(),
     html: `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${css}</style></head>`
       + `<body><h1>${escapeHtml(title)}</h1><div class="meta">HSE Dashboard — printed ${escapeHtml(stamp)}</div>`
-      + `<div class="noprint"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>${body}</body></html>`
+      + `<div class="noprint"><button onclick="window.print()">🖨️ Print</button></div>${body}</body></html>`
   };
 }
 
-/* Print / PDF.
-   Google Sites (and any other embed) sandboxes its iframe. If 'allow-modals' is
-   missing from the sandbox, window.print() fails silently, so there are three
-   levels of fallback:
-     1) print directly from a hidden iframe (normal, non-embedded case)
-     2) open a new tab and let the user print from there (for embeds)
-     3) if neither works, download the report as an .html file            */
-function printKpiModal(){
-  const rep = buildPrintHtml();
-  if(rep.empty){ toast('Nothing to print'); return; }
+/* ---------- PRINT and PDF are two separate actions ----------
+   PRINT  -> only opens the print dialog. Never downloads any file.
+   PDF    -> only downloads a real .pdf file. Never opens the print dialog and
+             never downloads an .html file.
+   Both work on a "report" object {title, html} built by buildPrintHtml(),
+   buildSummaryPrintHtml() or buildChallanHtml().                              */
+function isEmbedded(){ try{ return window.self !== window.top; }catch(e){ return true; } }
+function withPrintHelpers(html){
+  const hint = '</button><span style="margin-left:12px;font:12px Segoe UI,Arial,sans-serif;color:#5c6b60">If the print dialog does not open, press <b>Ctrl + P</b> (Mac: <b>⌘ + P</b>).</span>';
+  const auto = '<script>window.addEventListener("load",function(){setTimeout(function(){try{window.focus();window.print();}catch(e){}},700);});<\/script>';
+  html = html.replace('🖨️ Print</button>', '🖨️ Print'+hint);
+  return html.replace('</body>', auto+'</body>');
+}
+/* Opens the report in its own browser tab (used only when the in-page print
+   dialog is blocked, e.g. by a sandboxed embed). */
+function openPrintTab(rep){
+  const html = withPrintHelpers(rep.html);
+  let opaque = false;
+  try{ opaque = (String(window.origin)==='null' || String(location.origin)==='null'); }catch(e){ opaque = true; }
+  if(!opaque){
+    // normal case: blank tab + document.write (no blob URL, so nothing can be "downloaded")
+    let w = null;
+    try{ w = window.open('', '_blank'); }catch(e){ w = null; }
+    if(!w) return false;
+    try{
+      w.document.open(); w.document.write(html); w.document.close();
+      try{ w.focus(); }catch(e){}
+      return true;
+    }catch(e){
+      try{ w.close(); }catch(e2){}
+      return false;
+    }
+  }
+  // sandbox without 'allow-same-origin': document.write into the tab is refused, a Blob URL still works
+  try{
+    const url = URL.createObjectURL(new Blob([html], {type:'text/html;charset=utf-8'}));
+    const w = window.open(url, '_blank');
+    if(w){ setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} }, 5*60*1000); return true; }
+    try{ URL.revokeObjectURL(url); }catch(e){}
+  }catch(e){}
+  return false;
+}
 
-  const old = document.getElementById('printFrame'); if(old) old.remove();
-  let printed = false;
+/* PRINT. 1) print dialog straight from a hidden iframe (stays on the page)
+          2) if the browser ignored it (sandboxed embed without 'allow-modals'),
+             open the report in a new tab, which starts the print dialog itself
+          3) if that is blocked too, just say so — no file is ever downloaded. */
+function printReport(rep){
+  if(!rep || rep.empty || !rep.html){ toast('Nothing to print'); return; }
+  const old = document.getElementById('hsePrintFrame'); if(old) old.remove();
+  let printed = false, fellBack = false;
+  const fallback = ()=>{
+    if(fellBack) return; fellBack = true;
+    if(openPrintTab(rep)) toast('Print page opened in a new tab');
+    else toast('Printing is blocked here — use the PDF button, or open the dashboard in its own tab');
+  };
   try{
     const f = document.createElement('iframe');
-    f.id = 'printFrame';
+    f.id = 'hsePrintFrame';
     f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
     document.body.appendChild(f);
     const d = f.contentWindow.document;
     d.open(); d.write(rep.html); d.close();
     f.contentWindow.addEventListener('beforeprint', ()=>{ printed = true; });
     f.contentWindow.addEventListener('afterprint', ()=>{ printed = true; });
-    setTimeout(()=>{
-      try{ f.contentWindow.focus(); f.contentWindow.print(); }
-      catch(e){ printed = false; }
-      // in a Chrome sandbox, print() can do nothing without raising an error —
-      // so we check a moment later and run the fallback
-      setTimeout(()=>{ if(!printed) printFallbackWindow(rep); }, 700);
-    }, 250);
+    // photos (challan) and web fonts (summary) get a short moment to load — capped so the
+    // click still counts as a user action if the new-tab fallback is needed
+    const fontsReady = (d.fonts && d.fonts.ready) ? d.fonts.ready : Promise.resolve();
+    Promise.all([
+      waitForImagesReady(d, 2000),
+      Promise.race([fontsReady, new Promise(r=>setTimeout(r,1500))]).catch(()=>{})
+    ]).then(()=>{
+      setTimeout(()=>{
+        try{ f.contentWindow.focus(); f.contentWindow.print(); }
+        catch(e){ printed = false; }
+        // a sandbox can make print() do nothing without raising an error —
+        // so check a moment later and only then use the new tab
+        setTimeout(()=>{ if(!printed) fallback(); }, 700);
+      }, 200);
+    });
   }catch(e){
-    printFallbackWindow(rep);
+    fallback();
   }
 }
 
-function printFallbackWindow(rep){
-  let w = null;
-  try{ w = window.open('', '_blank'); }catch(e){ w = null; }
-  if(w && w.document){
-    try{
-      w.document.open(); w.document.write(rep.html); w.document.close();
-      w.focus();
-      toast('Report opened in a new tab — press Print there');
-      return;
-    }catch(e){}
-  }
-  printFallbackDownload(rep);
+/* PDF. Builds a real PDF in the browser (html2canvas + jsPDF, loaded on first use)
+   and downloads it as <title>.pdf. */
+const PDF_LIBS = [
+  { ok:()=>typeof window.html2canvas==='function',
+    urls:['https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+          'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'] },
+  { ok:()=>!!(window.jspdf && window.jspdf.jsPDF),
+    urls:['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+          'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'] }
+];
+function loadScriptOnce(url){
+  return new Promise((resolve,reject)=>{
+    const sc = document.createElement('script');
+    sc.src = url; sc.async = true;
+    sc.onload = ()=>resolve();
+    sc.onerror = ()=>{ sc.remove(); reject(new Error('load failed: '+url)); };
+    document.head.appendChild(sc);
+  });
 }
-
-function printFallbackDownload(rep){
+async function ensurePdfLibs(){
+  for(const lib of PDF_LIBS){
+    if(lib.ok()) continue;
+    for(const u of lib.urls){
+      try{ await loadScriptOnce(u); }catch(e){}
+      if(lib.ok()) break;
+    }
+    if(!lib.ok()) throw new Error('PDF library could not be loaded');
+  }
+}
+function toastHold(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT);
+}
+function pdfFileName(title){
+  return (String(title||'HSE Report').replace(/[^\w\- ]+/g,' ').trim().slice(0,70).replace(/\s+/g,'_') || 'HSE_Report') + '.pdf';
+}
+let PDF_BUSY = false;
+async function downloadReportPdf(rep, opts){
+  if(!rep || rep.empty || !rep.html){ toast('Nothing to export'); return; }
+  if(PDF_BUSY){ toastHold('PDF is still being prepared…'); return; }
+  opts = opts || {};
+  const W = opts.width || 1250;                 // layout width (px) the report is rendered at
+  const margin = opts.margin!=null ? opts.margin : 8;   // page margin (mm)
+  PDF_BUSY = true;
+  toastHold('Preparing PDF…');
+  let f = null;
   try{
-    const blob = new Blob([rep.html], {type:'text/html'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = rep.title.replace(/[^\w\- ]+/g,'').trim().slice(0,60).replace(/\s+/g,'_') + '.html';
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-    toast('Report file downloaded — open it and print');
+    await ensurePdfLibs();
+    f = document.createElement('iframe');
+    f.setAttribute('aria-hidden','true');
+    f.style.cssText = 'position:fixed;left:-20000px;top:0;width:'+W+'px;height:1000px;border:0;visibility:hidden';
+    document.body.appendChild(f);
+    const d = f.contentWindow.document;
+    // PDF-only overrides: no on-screen print button, plain white page, and no CSS
+    // that the renderer cannot draw (zoom, conic gradients)
+    const pdfCss = '<style>.noprint{display:none !important}'
+      + 'html,body{background:#fff !important}'
+      + 'html{overflow:hidden !important}'
+      + 'body{zoom:1 !important;min-height:0 !important}'
+      + '.sheet{box-shadow:none !important;border:0 !important;margin:0 auto !important;max-width:100% !important}'
+      + '.chal-qr{background:#fff !important}'
+      + '</style>';
+    d.open(); d.write(rep.html.replace('</head>', pdfCss+'</head>')); d.close();
+    // Drive photos: use the image host that allows cross-origin reads, otherwise
+    // the photo cannot be copied into the PDF
+    Array.from(d.images||[]).forEach(img=>{
+      const m = String(img.getAttribute('src')||'').match(/drive\.google\.com\/thumbnail\?id=([a-zA-Z0-9_-]+)/);
+      if(m){ img.crossOrigin = 'anonymous'; img.src = 'https://lh3.googleusercontent.com/d/'+m[1]+'=w1000'; }
+    });
+    // chart text lives inside <svg>; give it the page font explicitly
+    Array.from(d.querySelectorAll('svg')).forEach(sv=>{ sv.style.fontFamily = "Inter,'Segoe UI',Roboto,Arial,sans-serif"; });
+    const fontsReady = (d.fonts && d.fonts.ready) ? d.fonts.ready : Promise.resolve();
+    await Promise.all([
+      waitForImagesReady(d, 6000),
+      Promise.race([fontsReady, new Promise(r=>setTimeout(r,2500))]).catch(()=>{})
+    ]);
+    await new Promise(r=>setTimeout(r,150));
+
+    const body = d.body, root = d.documentElement;
+    const docH = ()=>Math.ceil(Math.max(root.scrollHeight, body.scrollHeight, body.getBoundingClientRect().bottom));
+    // make the hidden frame as tall as the report, so what is measured here is laid
+    // out exactly like what gets drawn (no scrollbar stealing width)
+    f.style.height = (docH() + 40) + 'px';
+    await new Promise(r=>setTimeout(r,60));
+    const fullH = docH();
+    // browsers cap canvas height (~32k px): lower the sharpness for very long tables
+    // long reports (many pages of table) use a lighter scale to keep the file small
+    let scale = fullH > 3000 ? 1.5 : 2;
+    const MAX_CANVAS_PX = 30000;
+    if(fullH*scale > MAX_CANVAS_PX) scale = MAX_CANVAS_PX/fullH;
+    // safe places to break a page (measured from the top of the document):
+    // after a whole block if possible, otherwise after a table row — never through one
+    const bottoms = sel => Array.from(d.querySelectorAll(sel)).map(el=>el.getBoundingClientRect().bottom).filter(v=>v>0);
+    const blockBreaks = bottoms('.panel,.kpis,.grid1,.grid2,.pr-head,.chal-grid,.chal-penalty,.chal-photos,.chal-title,.chal-decl,.chal-sign');
+    const rowBreaks = bottoms('tr,.section-head,h1,.meta');
+
+    const canvas = await window.html2canvas(body, {
+      scale: scale, useCORS: true, backgroundColor: '#ffffff', logging: false,
+      width: W, height: fullH, windowWidth: W, windowHeight: fullH, scrollX: 0, scrollY: 0
+    });
+    if(!canvas.width || !canvas.height) throw new Error('empty canvas');
+
+    const pdf = new window.jspdf.jsPDF({orientation: opts.orientation||'l', unit:'mm', format:'a4', compress:true});
+    const pageW = pdf.internal.pageSize.getWidth(), pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW - 2*margin;
+    const pxPerMm = canvas.width / imgW;
+    const pagePx = Math.floor((pageH - 2*margin) * pxPerMm);
+    const k = canvas.height / fullH;
+    const toCuts = arr => [...new Set(arr.map(v=>Math.round(v*k)))].sort((p,q)=>p-q);
+    const blockCuts = toCuts(blockBreaks), allCuts = toCuts(blockBreaks.concat(rowBreaks));
+    let y = 0, page = 0;
+    while(y < canvas.height - 3){
+      let end = Math.min(y + pagePx, canvas.height);
+      if(end < canvas.height){
+        const blk = blockCuts.filter(c=>c > y + pagePx*0.7 && c <= end);
+        const any = allCuts.filter(c=>c > y + pagePx*0.35 && c <= end);
+        if(blk.length) end = blk[blk.length-1];
+        else if(any.length) end = any[any.length-1];
+      }
+      const pc = document.createElement('canvas');
+      pc.width = canvas.width; pc.height = end - y;
+      const ctx = pc.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,pc.width,pc.height);
+      ctx.drawImage(canvas, 0, y, canvas.width, end-y, 0, 0, canvas.width, end-y);
+      if(page > 0) pdf.addPage();
+      pdf.addImage(pc.toDataURL('image/jpeg', 0.82), 'JPEG', margin, margin, imgW, (end-y)/pxPerMm);
+      y = end; page++;
+      if(page > 200) break;
+    }
+    pdf.save(pdfFileName(rep.title));
+    toast('PDF downloaded ✅');
   }catch(e){
-    toast('Printing was blocked — open the dashboard in a new tab and print from there');
+    console.warn('PDF export failed', e);
+    if(e && e.name==='SecurityError') toast('PDF is blocked inside this embed — open the dashboard in its own tab');
+    else toast('PDF could not be created — check the internet connection and try again');
+  }finally{
+    PDF_BUSY = false;
+    if(f) try{ f.remove(); }catch(e){}
   }
 }
+
+function printKpiModal(){ printReport(buildPrintHtml()); }
+function pdfKpiModal(){ downloadReportPdf(buildPrintHtml(), {orientation:'l', width:1250, margin:8}); }
+
+/* ----- Print / PDF of the whole HSE Management Summary tab -----
+   Builds a standalone page (same styles + the tab's current visuals, with the
+   filters that are applied right now). printSummary() prints it, pdfSummary()
+   downloads it as a .pdf file. */
+function buildSummaryPrintHtml(){
+  const src = document.getElementById('summaryContent');
+  if(!src) return {title:'HSE Management Summary', empty:true, html:''};
+  const clone = src.cloneNode(true);
+  clone.querySelectorAll('[onclick]').forEach(n=>n.removeAttribute('onclick'));
+  const pageCss = Array.from(document.querySelectorAll('style')).map(st=>st.textContent).join('\n');
+  const F = getSummaryFilter();
+  const range = ((document.getElementById('sumRangeNote')||{}).textContent||'').replace(/^Showing:\s*/,'') || 'all time';
+  const stamp = new Date().toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const projLabel = F.projFilter ? (SM_TABLE_PROJ_LABELS[F.projFilter]||F.projFilter) : 'All Projects';
+  const title = 'HSE Management Summary — '+range;
+  const css = `
+    *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important}
+    html,body{background:#fff !important}
+    body{margin:0;padding:14px 16px;zoom:.78}
+    .donut{width:190px !important;height:190px !important}
+    .kpis{margin-bottom:10px !important}
+    .sm-wrap>*{animation:none !important;opacity:1 !important;transform:none !important}
+    .panel,.kpi{box-shadow:none !important;break-inside:avoid;page-break-inside:avoid}
+    .kpi{cursor:default}
+    .grid2{grid-template-columns:1fr 1fr !important}
+    .kpis{grid-template-columns:repeat(6,1fr) !important}
+    .section-head{break-after:avoid;page-break-after:avoid}
+    .sm-table{break-inside:avoid;page-break-inside:avoid}
+    .pr-head{display:flex;align-items:flex-end;gap:14px;border-bottom:3px solid #0f7a4d;padding-bottom:8px;margin-bottom:12px}
+    .pr-head h1{font-family:'Barlow Semi Condensed',system-ui,sans-serif;font-size:21px;font-weight:800;color:#14201a;margin:0;letter-spacing:.3px}
+    .pr-head .pr-sub{font-size:11.5px;color:#5c6b60;margin-top:3px}
+    .pr-head .pr-meta{margin-left:auto;text-align:right;font-size:11px;color:#5c6b60;line-height:1.5}
+    .pr-head .pr-meta b{color:#182018}
+    .pr-foot{margin-top:10px;font-size:10px;color:#8a988c;text-align:center}
+    .noprint{margin:0 0 12px}
+    .noprint button{font:inherit;font-size:13px;padding:9px 16px;border-radius:8px;border:1px solid #0f7a4d;background:#0f7a4d;color:#fff;cursor:pointer;font-weight:600}
+    @media print{.noprint{display:none !important}body{padding:0}}
+    @page{size:A4 landscape;margin:9mm}
+  `;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>`
+    + `<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">`
+    + `<style>${pageCss}</style><style>${css}</style></head><body>`
+    + `<div class="noprint"><button onclick="window.print()">🖨️ Print</button></div>`
+    + `<div class="pr-head"><div><h1>THE VERTICAL &nbsp;|&nbsp; HSE MANAGEMENT SUMMARY</h1><div class="pr-sub">Health, Safety &amp; Environment</div></div>`
+    + `<div class="pr-meta"><div>Project: <b>${escapeHtml(projLabel)}</b></div><div>Period: <b>${escapeHtml(range)}</b></div><div>Printed: ${escapeHtml(stamp)}${LOGGED_IN_USER?' · '+escapeHtml(LOGGED_IN_USER):''}</div></div></div>`
+    + `<div class="sm-wrap">${clone.innerHTML}</div>`
+    + `<div class="pr-foot">HSE Dashboard — The Vertical</div>`
+    + `</body></html>`;
+  return {title, empty:false, html};
+}
+function printSummary(){ printReport(buildSummaryPrintHtml()); }
+function pdfSummary(){ downloadReportPdf(buildSummaryPrintHtml(), {orientation:'l', width:1440, margin:7}); }
 
 document.getElementById('kpiModalBg').addEventListener('click', e=>{ if(e.target.id==='kpiModalBg') closeKpiModal(); });
 
@@ -3756,17 +3997,19 @@ function renderStackedRiskBars(id, legendId, items){
 /* Inside Google Sites (or any sandboxed iframe), accessing localStorage and
    sessionStorage can throw a SecurityError. These helpers make storage optional —
    an in-memory fallback keeps working. */
-const MEM_STORE = {};
+/* a function (hoisted) rather than a const: storage helpers are called higher up in
+   this script, before a const declared here would exist */
+function memStore(){ return window.__hseMemStore || (window.__hseMemStore = {}); }
 function safeStoreGet(area, key){
   try{ const v = window[area].getItem(key); return v===null?undefined:v; }
-  catch(e){ return MEM_STORE[area+':'+key]; }
+  catch(e){ return memStore()[area+':'+key]; }
 }
 function safeStoreSet(area, key, val){
-  MEM_STORE[area+':'+key] = val;
+  memStore()[area+':'+key] = val;
   try{ window[area].setItem(key, val); }catch(e){}
 }
 function safeStoreRemove(area, key){
-  delete MEM_STORE[area+':'+key];
+  delete memStore()[area+':'+key];
   try{ window[area].removeItem(key); }catch(e){}
 }
 
