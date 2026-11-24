@@ -246,7 +246,8 @@ td .cell-textarea{min-height:44px;resize:vertical}
 #smKpis .kpi .l{color:#111;font-weight:700}
 #smKpis .kpi .sm-sub{font-size:11.5px;color:#222;font-style:italic;font-weight:500;margin-top:3px}
 #smKpis .kpi{display:flex;flex-direction:column}
-#smKpis .kpi .kpi-spark{margin-top:auto;padding-top:8px;box-sizing:content-box}
+#smKpis .kpi .sm-spk{margin-top:auto;padding-top:8px}
+#smKpis .kpi .kpi-spark{margin-top:0}
 .sm-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;text-align:center;border-radius:10px;overflow:hidden;border:1px solid #cfd8e6}
 .sm-table th{background:#f4f7f4;color:var(--muted);font-weight:700;padding:9px 10px;font-size:11px;letter-spacing:.3px;text-transform:uppercase;border-bottom:1px solid var(--line);border-right:1px solid #eef2f7}
 .sm-table th:last-child{border-right:0}
@@ -263,6 +264,7 @@ td .cell-textarea{min-height:44px;resize:vertical}
 .sm-pct .trk i{display:block;height:100%;border-radius:4px}
 .sm-pct b{min-width:36px;text-align:right}
 .sm-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:800;font-size:12px;min-width:48px}
+.sm-dpct{min-width:44px;text-align:right;font-weight:700;font-size:12px;color:var(--muted)}
 .sm-pill.red{background:#fee2e2;color:#b91c1c}.sm-pill.org{background:#fef3c7;color:#b45309}.sm-pill.grn{background:#dcfce7;color:#15803d}
 .sm-cmp{display:flex;flex-direction:column;gap:7px;max-width:1100px;margin:0 auto}
 .sm-cmp-row{display:grid;grid-template-columns:150px 1fr 54px 64px;gap:12px;align-items:center;font-size:12.5px;padding:3px 8px}
@@ -2232,12 +2234,12 @@ function renderSummaryKpis(F){
     crit: S.crit.length ? 'rated Critical, still open' : 'none rated Critical',
   };
   el.innerHTML = `
-    <div class="kpi" onclick="showSummaryKpi('total')"><div class="n">${obs.length}</div><div class="l">Total HSE Actions Logged</div><div class="sm-sub">${escapeHtml(sub.total)}</div><svg class="kpi-spark" id="smspk-total" viewBox="0 0 100 26"></svg></div>
-    <div class="kpi c-closed" onclick="showSummaryKpi('closed')"><div class="n">${S.closed.length}</div><div class="l">Done &amp; OK (Closed + HSE Verified)</div><div class="sm-sub">${escapeHtml(sub.closed)}</div><svg class="kpi-spark" id="smspk-closed" viewBox="0 0 100 26"></svg></div>
-    <div class="kpi c-ongoing" onclick="showSummaryKpi('ongoing')"><div class="n">${S.ongoing.length}</div><div class="l">Ongoing – Needs Follow-up</div><div class="sm-sub">${escapeHtml(sub.ongoing)}</div><svg class="kpi-spark" id="smspk-ongoing" viewBox="0 0 100 26"></svg></div>
-    <div class="kpi c-open" onclick="showSummaryKpi('open')"><div class="n">${S.open.length}</div><div class="l">Open – Pending with Action Owners</div><div class="sm-sub">${escapeHtml(sub.open)}</div><svg class="kpi-spark" id="smspk-open" viewBox="0 0 100 26"></svg></div>
-    <div class="kpi c-over" onclick="showSummaryKpi('overdue')"><div class="n">${S.overdue.length}</div><div class="l">Overdue (Past Target Date)</div><div class="sm-sub">${escapeHtml(sub.overdue)}</div><svg class="kpi-spark" id="smspk-overdue" viewBox="0 0 100 26"></svg></div>
-    <div class="kpi c-crit" onclick="showSummaryKpi('crit')"><div class="n">${S.crit.length}</div><div class="l">Critical Observations Needing Management Help</div><div class="sm-sub">${escapeHtml(sub.crit)}</div><svg class="kpi-spark" id="smspk-crit" viewBox="0 0 100 26"></svg></div>
+    <div class="kpi" onclick="showSummaryKpi('total')"><div class="n">${obs.length}</div><div class="l">Total HSE Actions Logged</div><div class="sm-sub">${escapeHtml(sub.total)}</div><div class="sm-spk"><svg class="kpi-spark" id="smspk-total" viewBox="0 0 100 26"></svg></div></div>
+    <div class="kpi c-closed" onclick="showSummaryKpi('closed')"><div class="n">${S.closed.length}</div><div class="l">Done &amp; OK (Closed + HSE Verified)</div><div class="sm-sub">${escapeHtml(sub.closed)}</div><div class="sm-spk"><svg class="kpi-spark" id="smspk-closed" viewBox="0 0 100 26"></svg></div></div>
+    <div class="kpi c-ongoing" onclick="showSummaryKpi('ongoing')"><div class="n">${S.ongoing.length}</div><div class="l">Ongoing – Needs Follow-up</div><div class="sm-sub">${escapeHtml(sub.ongoing)}</div><div class="sm-spk"><svg class="kpi-spark" id="smspk-ongoing" viewBox="0 0 100 26"></svg></div></div>
+    <div class="kpi c-open" onclick="showSummaryKpi('open')"><div class="n">${S.open.length}</div><div class="l">Open – Pending with Action Owners</div><div class="sm-sub">${escapeHtml(sub.open)}</div><div class="sm-spk"><svg class="kpi-spark" id="smspk-open" viewBox="0 0 100 26"></svg></div></div>
+    <div class="kpi c-over" onclick="showSummaryKpi('overdue')"><div class="n">${S.overdue.length}</div><div class="l">Overdue (Past Target Date)</div><div class="sm-sub">${escapeHtml(sub.overdue)}</div><div class="sm-spk"><svg class="kpi-spark" id="smspk-overdue" viewBox="0 0 100 26"></svg></div></div>
+    <div class="kpi c-crit" onclick="showSummaryKpi('crit')"><div class="n">${S.crit.length}</div><div class="l">Critical Observations Needing Management Help</div><div class="sm-sub">${escapeHtml(sub.crit)}</div><div class="sm-spk"><svg class="kpi-spark" id="smspk-crit" viewBox="0 0 100 26"></svg></div></div>
   `;
   // Sparklines: within a date window, bucket by day; otherwise by month (like the Dashboard)
   let buckets, keyOf;
@@ -2271,12 +2273,23 @@ function renderSummaryDonut(){
     {label:'Open / pending with owner', val:S.open.length, color:SM_ST_COLORS.Open, key:'open'},
   ];
   renderDonut('smDonut','smDonutLegend', items);
+  // whole-number percentages that add up to 100 — same rounding as the compliance bar / Closure % column
+  let P = [0,0,0];
+  if(S.total){
+    const c = Math.round(S.closed.length/S.total*100);
+    const raw = [S.ongoing.length, S.open.length].map(v=>v/S.total*100);
+    const out = raw.map(Math.floor); let left = 100-c-out[0]-out[1];
+    raw.map((v,i)=>[v-out[i],i]).sort((a,b)=>b[0]-a[0]).forEach(([,i])=>{ if(left>0 && raw[i]>0){ out[i]++; left--; } });
+    P = [c,out[0],out[1]];
+  }
+  items.forEach((it,i)=>{ it.pct = P[i]; });
   // make segments + legend rows clickable like the KPI cards
   const circles = svg.querySelectorAll('g circle');
   const live = items.filter(i=>i.val>0);
-  circles.forEach((c,i)=>{ if(live[i]){ c.style.cursor='pointer'; c.classList.add('risk-seg'); c.setAttribute('onclick',`showSummaryKpi('${live[i].key}')`); c.innerHTML=`<title>${escapeHtml(live[i].label)}: ${live[i].val}</title>`; } });
+  circles.forEach((c,i)=>{ if(live[i]){ c.style.cursor='pointer'; c.classList.add('risk-seg'); c.setAttribute('onclick',`showSummaryKpi('${live[i].key}')`); c.innerHTML=`<title>${escapeHtml(live[i].label)}: ${live[i].val} (${live[i].pct}%)</title>`; } });
   const legend=document.getElementById('smDonutLegend');
-  legend.querySelectorAll('.row').forEach((row,i)=>{ row.style.cursor='pointer'; row.setAttribute('onclick',`showSummaryKpi('${items[i].key}')`); });
+  legend.querySelectorAll('.row').forEach((row,i)=>{ row.style.cursor='pointer'; row.setAttribute('onclick',`showSummaryKpi('${items[i].key}')`);
+    const v=row.querySelector('.val'); if(v && S.total) v.insertAdjacentHTML('afterend', `<span class="sm-dpct">${items[i].pct}%</span>`); });
   const t=document.getElementById('smDonutTotal'); if(t) t.textContent = S.total+' total';
 }
 
